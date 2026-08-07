@@ -7,7 +7,7 @@
         "php": "^8.4",
         "componenta/arrayable": "^1.0",
         "componenta/config": "^1.0",
-        "componenta/di": "^1.0",
+        "componenta/di": "^2.0@dev",
         "componenta/identity": "^1.0",
         "psr/container": "^2.0"
     },
@@ -30,6 +30,11 @@
             "config-providers": [
                 "Componenta\\Policy\\ConfigProvider"
             ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
         }
     }
 }
