@@ -30,8 +30,12 @@ interface PolicyInterface
 
 - `IdentityInterface` для идентичности и владения;
 - `PermissionAwareInterface` для прямых разрешений;
-- `RoleAwareInterface` и `RoleCollectionAwareInterface` для ролей;
+- `RoleAwareInterface` для одной роли;
+- `RoleCollectionAwareInterface` для коллекции ролей, принадлежащей актору;
+- `RoleInterface` или `RoleCollectionInterface` напрямую там, где role-policy принимает сами объекты ролей;
 - прикладные capability-интерфейсы для пользовательских политик.
+
+`RoleInterface` предоставляет стабильное имя через read-only свойство `public string $name`. `RoleCollection` и встроенные role-policy работают именно с этим свойством; legacy-контракта `getName()` у роли нет.
 
 ## Семантика актора
 
@@ -103,6 +107,8 @@ $enforcer->enforce('posts.update', $user, [
 
 Для `PermissionPolicy`, `RolePolicy`, `OwnerPolicy` и `HierarchyPolicy` `Guest` является корректным субъектом и получает обычный `DenyReason`. Неизвестный non-guest объект без требуемой capability остаётся ошибкой. Инварианты контекста также fail-fast: например, `OwnerPolicy` всё равно требует корректный `resource`, даже если актор — `Guest`.
 
+`RolePolicy` и `HierarchyPolicy` принимают `RoleInterface` и `RoleCollectionInterface` напрямую, а также role-aware capability акторов. Пустая коллекция ролей является корректным источником ролей и при требовании роли приводит к обычному отказу, а не к `InvalidPolicyActorException`.
+
 ### Пример разрешений
 
 ```php
@@ -133,7 +139,7 @@ $user = new User(new PermissionCollection([PostPermission::CREATE]));
 $policy = new PermissionPolicy(PostPermission::CREATE);
 ```
 
-`PermissionPolicy` объединяет разрешения, полученные напрямую от актора, из одной роли и из коллекции ролей.
+`PermissionPolicy` объединяет разрешения, полученные напрямую от актора, из одной роли, через `RoleCollectionAwareInterface` или из переданного напрямую `RoleCollectionInterface`. Пустая коллекция ролей остаётся корректным источником разрешений и даёт обычный отказ из-за отсутствующего permission, а не `InvalidPolicyActorException`.
 
 ## Контекст
 
@@ -157,7 +163,9 @@ $policy = new PermissionPolicy(PostPermission::CREATE);
 - `OneOfPolicyProvider` — объединяет найденные политики через `OneOf`;
 - `CompiledPolicyProvider` — читает дескрипторы, созданные `componenta/policy-app`.
 
-Стандартный `PolicyProviderFactory` собирает configured map, пользовательские провайдеры, compiled descriptors и fallback на атрибуты.
+Стандартный `PolicyProviderFactory` собирает configured map, пользовательские провайдеры, compiled descriptors и fallback на атрибуты. Фабрики, которым одновременно нужны сервисы и конфигурация, получают `Componenta\Config\ContainerValue`: сервисы извлекаются типизированно, а конфигурация берётся из его `Config`, а не из нетипизированного service id `config`.
+
+Классы пользовательских policy providers и shape configured policy map валидируются до использования. Ленивая фабрика configured policy обязана вернуть `PolicyInterface`.
 
 ## Атрибуты
 
