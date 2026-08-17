@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use Componenta\Policy\Actor\Guest;
+use Componenta\Policy\Actor\RoleCollection;
+use Componenta\Policy\Actor\RoleCollectionAwareInterface;
+use Componenta\Policy\Actor\RoleCollectionInterface;
 use Componenta\Policy\ContainsMode;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
@@ -97,6 +100,27 @@ describe('mode=Any', function () {
 
         expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
     });
+});
+
+it('treats an empty direct role collection as a valid permission source', function (): void {
+    expect((new PermissionPolicy(new FakePermission('x')))->enforce(
+        new RoleCollection(),
+        $this->context,
+    ))->toBeInstanceOf(DenyReason::class);
+});
+
+it('treats an empty RoleCollectionAware actor as a valid permission source', function (): void {
+    $actor = new readonly class implements RoleCollectionAwareInterface {
+        public RoleCollectionInterface $roles;
+
+        public function __construct()
+        {
+            $this->roles = new RoleCollection();
+        }
+    };
+
+    expect((new PermissionPolicy(new FakePermission('x')))->enforce($actor, $this->context))
+        ->toBeInstanceOf(DenyReason::class);
 });
 
 it('denies Guest as a valid anonymous actor', function () {
