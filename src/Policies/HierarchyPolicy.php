@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Policy\Policies;
 
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Actor\RoleAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionInterface;
@@ -19,9 +20,9 @@ use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
  * target role.
  *
  * The target must be supplied in the context under {@see self::ATTR_TARGET}
- * and expose a role or role collection. This is useful for moderation flows:
- * a higher-ranked role may act on lower-ranked targets, but cannot act on a
- * target that has an equal or higher role among its assigned roles.
+ * and expose a role or role collection. {@see Guest} is a valid anonymous
+ * actor and is denied normally; other actors without a supported role
+ * capability are treated as a policy integration error.
  */
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
 final class HierarchyPolicy extends AbstractPolicy
@@ -30,6 +31,10 @@ final class HierarchyPolicy extends AbstractPolicy
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
     {
+        if ($actor instanceof Guest) {
+            return $this->deny('Guest actor has no role hierarchy');
+        }
+
         $actorRoles = $this->extractRole($actor);
 
         if ($actorRoles === null) {
@@ -96,9 +101,7 @@ final class HierarchyPolicy extends AbstractPolicy
         return null;
     }
 
-    /**
-     * @return list<RoleInterface>
-     */
+    /** @return list<RoleInterface> */
     private static function normalizeRoles(RoleInterface|RoleCollectionInterface $roles): array
     {
         if ($roles instanceof RoleInterface) {
@@ -135,7 +138,6 @@ final class HierarchyPolicy extends AbstractPolicy
 
     /**
      * @param list<RoleInterface> $roles
-     *
      * @return string[]
      */
     private static function roleNames(array $roles): array
