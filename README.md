@@ -30,8 +30,12 @@ There is no universal actor composite interface. `PolicyEnforcer` accepts `objec
 
 - `IdentityInterface` for identity/ownership;
 - `PermissionAwareInterface` for direct permissions;
-- `RoleAwareInterface` or `RoleCollectionAwareInterface` for roles;
+- `RoleAwareInterface` for one role;
+- `RoleCollectionAwareInterface` for a role collection carried by an actor;
+- `RoleInterface` or `RoleCollectionInterface` directly where role policies accept role objects themselves;
 - application-specific capability interfaces for custom policies.
+
+`RoleInterface` exposes its stable name through the read-only `public string $name` property. `RoleCollection` and the built-in role policies use that property directly; no legacy `getName()` role contract exists.
 
 ## Actor semantics
 
@@ -103,6 +107,8 @@ Missing policies follow `MissingPolicyBehavior`. The default is `DENY`. A call m
 
 For `PermissionPolicy`, `RolePolicy`, `OwnerPolicy`, and `HierarchyPolicy`, `Guest` is a valid subject that receives a normal denial. These policies still fail fast for unsupported non-guest actor objects. Context invariants are also fail-fast: for example, `OwnerPolicy` still requires a valid `resource` even when the actor is `Guest`.
 
+`RolePolicy` and `HierarchyPolicy` accept `RoleInterface` and `RoleCollectionInterface` directly in addition to role-aware actor capabilities. An empty role collection is a valid role source and produces a normal denial when a role is required; it is not an invalid actor.
+
 ### Permission example
 
 ```php
@@ -133,7 +139,7 @@ $user = new User(new PermissionCollection([PostPermission::CREATE]));
 $policy = new PermissionPolicy(PostPermission::CREATE);
 ```
 
-`PermissionPolicy` can merge permissions exposed directly, through one role, or through a role collection.
+`PermissionPolicy` merges permissions exposed directly, through one role, through `RoleCollectionAwareInterface`, or through a direct `RoleCollectionInterface`. An empty role collection is still a valid permission source and therefore yields a normal missing-permission denial rather than `InvalidPolicyActorException`.
 
 ## Context
 
@@ -157,7 +163,9 @@ Policies that require context validate it explicitly:
 - `OneOfPolicyProvider` — combines policies found in multiple providers with `OneOf`;
 - `CompiledPolicyProvider` — consumes descriptors produced by `componenta/policy-app`.
 
-The default `PolicyProviderFactory` composes configured policy maps, custom providers, compiled policy descriptors, and attribute fallback.
+The default `PolicyProviderFactory` composes configured policy maps, custom providers, compiled policy descriptors, and attribute fallback. Configuration-aware DI factories receive `Componenta\Config\ContainerValue`; they use its typed service access and its `Config` value instead of treating configuration as an untyped container entry.
+
+Configured provider class names and policy-map shapes are validated before use. Lazy configured policy factories must resolve to `PolicyInterface`.
 
 ## Attributes
 
