@@ -23,6 +23,8 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer:v2
+      - name: Configure Composer authentication
+        run: composer config --global github-oauth.github.com "${{ github.token }}"
       - run: composer validate --strict
       - run: composer install --no-interaction --prefer-dist
       - name: Run package tests
