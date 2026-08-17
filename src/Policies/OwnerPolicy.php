@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Componenta\Policy\Policies;
 
 use Componenta\Identity\IdentityInterface;
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -14,8 +15,11 @@ use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
 /**
  * Allows the action when the actor owns the resource supplied in the context.
  *
- * Requires the actor to implement {@see IdentityInterface} and the resource
- * (under {@see self::ATTR_RESOURCE}) to implement {@see OwnableInterface}.
+ * Requires a non-guest actor to implement {@see IdentityInterface} and the
+ * resource (under {@see self::ATTR_RESOURCE}) to implement
+ * {@see OwnableInterface}. {@see Guest} is a valid anonymous actor and is
+ * denied normally.
+ *
  * Applicable directly as a PHP attribute.
  */
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
@@ -25,6 +29,10 @@ final class OwnerPolicy extends AbstractPolicy
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
     {
+        if ($actor instanceof Guest) {
+            return $this->deny('Guest actor cannot own an authenticated resource');
+        }
+
         if (!$actor instanceof IdentityInterface) {
             throw InvalidPolicyActorException::expected(
                 actor: $actor,
