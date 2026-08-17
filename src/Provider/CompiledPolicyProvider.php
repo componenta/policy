@@ -23,9 +23,7 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
     /** @var array<string, PolicyInterface> */
     private array $resolved = [];
 
-    /**
-     * @param array<string, array<string, mixed>> $policies
-     */
+    /** @param array<string, array<string, mixed>> $policies */
     public function __construct(
         private readonly FactoryInterface $factory,
         private readonly array $policies,
@@ -57,9 +55,7 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         return $this->resolved[$actionId] = $policy;
     }
 
-    /**
-     * @param array<string, mixed> $descriptor
-     */
+    /** @param array<string, mixed> $descriptor */
     private function build(string $actionId, array $descriptor): ?PolicyInterface
     {
         $kind = $descriptor['kind'] ?? null;
@@ -83,9 +79,7 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         }
     }
 
-    /**
-     * @param array<string, mixed> $descriptor
-     */
+    /** @param array<string, mixed> $descriptor */
     private function buildDirect(array $descriptor): ?PolicyInterface
     {
         $class = $descriptor['class'] ?? null;
@@ -98,9 +92,7 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         return new $class(...$arguments);
     }
 
-    /**
-     * @param array<string, mixed> $descriptor
-     */
+    /** @param array<string, mixed> $descriptor */
     private function buildFactory(array $descriptor): ?PolicyInterface
     {
         $policy = $descriptor['policy'] ?? null;
@@ -115,9 +107,7 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         return $resolved instanceof PolicyInterface ? $resolved : null;
     }
 
-    /**
-     * @param array<string, mixed> $descriptor
-     */
+    /** @param array<string, mixed> $descriptor */
     private function buildComposite(string $actionId, array $descriptor, bool $all): ?PolicyInterface
     {
         $children = $descriptor['policies'] ?? null;
@@ -127,12 +117,23 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         }
 
         $policies = [];
+
         foreach ($children as $child) {
             if (!is_array($child)) {
                 return null;
             }
 
-            $policy = $this->build($actionId, $child);
+            $normalized = [];
+
+            foreach ($child as $key => $value) {
+                if (!is_string($key)) {
+                    return null;
+                }
+
+                $normalized[$key] = $value;
+            }
+
+            $policy = $this->build($actionId, $normalized);
             if ($policy === null) {
                 return null;
             }
