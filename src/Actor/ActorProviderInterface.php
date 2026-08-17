@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Componenta\Policy\Actor;
 
 /**
- * Resolves the current actor from authentication context.
+ * Resolves the current policy actor from an integration-specific context.
  *
- * Returns `null` for anonymous access. The returned object is not required
- * to implement {@see ActorInterface} - built-in policies validate the type
- * themselves and return a denial when it does not fit.
+ * Implementations return the resolved actor object, {@see Guest} when they
+ * explicitly model anonymous access, or null when no actor can be resolved.
+ * The policy layer does not implicitly convert null to Guest.
  */
 interface ActorProviderInterface
 {
