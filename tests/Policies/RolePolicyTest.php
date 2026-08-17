@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Componenta\Policy\Actor\Guest;
+use Componenta\Policy\Actor\RoleCollection;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -34,6 +35,21 @@ it('allows an actor whose role collection contains an allowed role', function ()
     $actor = new FakeMultiRoleActor(1, new FakeRole('editor'), new FakeRole('moderator'));
 
     expect($policy->enforce($actor, $this->context))->toBeTrue();
+});
+
+it('accepts RoleCollectionInterface directly as the actor', function (): void {
+    $roles = new RoleCollection([
+        new FakeRole('editor'),
+        new FakeRole('moderator'),
+    ]);
+
+    expect((new RolePolicy(['admin', 'moderator']))->enforce($roles, $this->context))
+        ->toBeTrue();
+});
+
+it('denies an empty role collection as a valid role source', function (): void {
+    expect((new RolePolicy('admin'))->enforce(new RoleCollection(), $this->context))
+        ->toBeInstanceOf(DenyReason::class);
 });
 
 it('denies an actor whose role is not in the allowlist', function () {
