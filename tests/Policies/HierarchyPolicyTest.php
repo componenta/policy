@@ -17,9 +17,10 @@ it('allows when the actor role outranks the target role', function () {
     $actor = new FakeActor(1, new FakeRole('admin', rank: 10));
     $target = new FakeActor(2, new FakeRole('user', rank: 1));
 
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
-
-    expect((new HierarchyPolicy())->enforce($actor, $context))->toBeTrue();
+    expect((new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeTrue();
 });
 
 it('allows when one actor role outranks every target role', function () {
@@ -34,18 +35,20 @@ it('allows when one actor role outranks every target role', function () {
         new FakeRole('moderator', rank: 5),
     );
 
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
-
-    expect((new HierarchyPolicy())->enforce($actor, $context))->toBeTrue();
+    expect((new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeTrue();
 });
 
 it('denies when the actor role does not outrank the target role', function () {
     $actor = new FakeActor(1, new FakeRole('user', rank: 1));
     $target = new FakeActor(2, new FakeRole('admin', rank: 10));
 
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
-
-    expect((new HierarchyPolicy())->enforce($actor, $context))->toBeInstanceOf(DenyReason::class);
+    expect((new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeInstanceOf(DenyReason::class);
 });
 
 it('denies when actor roles outrank only part of the target role collection', function () {
@@ -56,34 +59,35 @@ it('denies when actor roles outrank only part of the target role collection', fu
         new FakeRole('admin', rank: 10),
     );
 
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
-
-    expect((new HierarchyPolicy())->enforce($actor, $context))->toBeInstanceOf(DenyReason::class);
+    expect((new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeInstanceOf(DenyReason::class);
 });
 
 it('accepts role instances directly as actor and target', function () {
-    $actor = new FakeRole('admin', rank: 10);
-    $target = new FakeRole('user', rank: 1);
-
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
-
-    expect((new HierarchyPolicy())->enforce($actor, $context))->toBeTrue();
+    expect((new HierarchyPolicy())->enforce(
+        new FakeRole('admin', rank: 10),
+        new Context([HierarchyPolicy::ATTR_TARGET => new FakeRole('user', rank: 1)]),
+    ))->toBeTrue();
 });
 
 it('denies Guest as a valid anonymous actor', function () {
     $target = new FakeActor(2, new FakeRole('user'));
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
 
-    expect((new HierarchyPolicy())->enforce(new Guest(), $context))
-        ->toBeInstanceOf(DenyReason::class);
+    expect((new HierarchyPolicy())->enforce(
+        new Guest(),
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeInstanceOf(DenyReason::class);
 });
 
 it('throws when an unknown actor has no role', function () {
     $target = new FakeActor(2, new FakeRole('user'));
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
 
-    expect(fn() => (new HierarchyPolicy())->enforce(new stdClass(), $context))
-        ->toThrow(InvalidPolicyActorException::class);
+    expect(fn() => (new HierarchyPolicy())->enforce(
+        new stdClass(),
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toThrow(InvalidPolicyActorException::class);
 });
 
 it('throws when the target is missing from the context', function () {
@@ -93,19 +97,26 @@ it('throws when the target is missing from the context', function () {
         ->toThrow(MissingPolicyContextAttributeException::class);
 });
 
+it('does not let Guest hide a missing target context', function () {
+    expect(fn() => (new HierarchyPolicy())->enforce(new Guest(), new Context()))
+        ->toThrow(MissingPolicyContextAttributeException::class);
+});
+
 it('throws when the target is not role-aware', function () {
     $actor = new FakeActor(1, new FakeRole('admin', rank: 10));
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => new stdClass()]);
 
-    expect(fn() => (new HierarchyPolicy())->enforce($actor, $context))
-        ->toThrow(InvalidPolicyContextAttributeException::class);
+    expect(fn() => (new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => new stdClass()]),
+    ))->toThrow(InvalidPolicyContextAttributeException::class);
 });
 
 it('denies when ranks are equal (strict superiority required)', function () {
     $actor = new FakeActor(1, new FakeRole('moderator', rank: 5));
     $target = new FakeActor(2, new FakeRole('moderator', rank: 5));
 
-    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
-
-    expect((new HierarchyPolicy())->enforce($actor, $context))->toBeInstanceOf(DenyReason::class);
+    expect((new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeInstanceOf(DenyReason::class);
 });
