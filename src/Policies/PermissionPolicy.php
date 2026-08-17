@@ -24,7 +24,7 @@ use InvalidArgumentException;
  *
  * The actor may expose permissions directly ({@see PermissionAwareInterface}),
  * through a single role ({@see RoleAwareInterface}), through a role collection
- * ({@see RoleCollectionAwareInterface}), or through a role collection object.
+ * ({@see RoleCollectionAwareInterface}), or be a role collection directly.
  * All discovered sources are merged into one effective permission collection;
  * granting a permission via any source is enough.
  *
@@ -66,7 +66,7 @@ final class PermissionPolicy extends AbstractPolicy
         if ($held === null) {
             throw InvalidPolicyActorException::expected(
                 actor: $actor,
-                expectedType: PermissionAwareInterface::class . '|' . RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class,
+                expectedType: PermissionAwareInterface::class . '|' . RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class . '|' . RoleCollectionInterface::class,
             );
         }
 
@@ -105,16 +105,18 @@ final class PermissionPolicy extends AbstractPolicy
         }
 
         if ($actor instanceof RoleCollectionAwareInterface) {
+            $foundSource = true;
+
             foreach ($actor->roles as $role) {
                 self::appendPermissions($permissions, $role->permissions);
-                $foundSource = true;
             }
         }
 
         if ($actor instanceof RoleCollectionInterface) {
+            $foundSource = true;
+
             foreach ($actor as $role) {
                 self::appendPermissions($permissions, $role->permissions);
-                $foundSource = true;
             }
         }
 
@@ -152,10 +154,7 @@ final class PermissionPolicy extends AbstractPolicy
     }
 
     /**
-     * Extracts permission names from the given permission iterable.
-     *
      * @param iterable<PermissionInterface> $permissions
-     *
      * @return string[]
      */
     private static function permissionNames(iterable $permissions): array
