@@ -135,14 +135,24 @@ final class PolicyProviderFactory
 
     /**
      * @param array<array-key, mixed> $config
-     * @return array<string, array<string, mixed>>
+     * @return array<string, mixed>
      */
     private function compiledPolicies(array $config): array
     {
-        $inline = $config[ConfigKey::COMPILED_POLICIES] ?? [];
+        if (array_key_exists(ConfigKey::COMPILED_POLICIES, $config)) {
+            $inline = $config[ConfigKey::COMPILED_POLICIES];
 
-        if (is_array($inline) && $inline !== []) {
-            return $this->normalizeCompiledMap($inline);
+            if (!is_array($inline)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Policy configuration "%s" must be an array; %s given.',
+                    ConfigKey::COMPILED_POLICIES,
+                    get_debug_type($inline),
+                ));
+            }
+
+            if ($inline !== []) {
+                return $this->normalizeCompiledMap($inline);
+            }
         }
 
         $file = $config[ConfigKey::COMPILED_POLICIES_FILE] ?? null;
@@ -159,7 +169,7 @@ final class PolicyProviderFactory
         return $this->normalizeCompiledMap($payload['map'] ?? []);
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /** @return array<string, mixed> */
     private function normalizeCompiledMap(mixed $value): array
     {
         if (!is_array($value)) {
@@ -169,25 +179,11 @@ final class PolicyProviderFactory
         $result = [];
 
         foreach ($value as $actionId => $descriptor) {
-            if (!is_string($actionId) || !is_array($descriptor)) {
+            if (!is_string($actionId) || $actionId === '') {
                 continue;
             }
 
-            $normalized = [];
-            $valid = true;
-
-            foreach ($descriptor as $key => $item) {
-                if (!is_string($key)) {
-                    $valid = false;
-                    break;
-                }
-
-                $normalized[$key] = $item;
-            }
-
-            if ($valid) {
-                $result[$actionId] = $normalized;
-            }
+            $result[$actionId] = $descriptor;
         }
 
         return $result;
