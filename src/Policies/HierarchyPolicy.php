@@ -31,19 +31,6 @@ final class HierarchyPolicy extends AbstractPolicy
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
     {
-        if ($actor instanceof Guest) {
-            return $this->deny('Guest actor has no role hierarchy');
-        }
-
-        $actorRoles = $this->extractRole($actor);
-
-        if ($actorRoles === null) {
-            throw InvalidPolicyActorException::expected(
-                actor: $actor,
-                expectedType: RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class . '|' . RoleInterface::class . '|' . RoleCollectionInterface::class,
-            );
-        }
-
         if (!$context->hasAttribute(self::ATTR_TARGET)) {
             throw new MissingPolicyContextAttributeException(
                 attribute: self::ATTR_TARGET,
@@ -58,6 +45,19 @@ final class HierarchyPolicy extends AbstractPolicy
             throw InvalidPolicyContextAttributeException::expected(
                 attribute: self::ATTR_TARGET,
                 value: $target,
+                expectedType: RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class . '|' . RoleInterface::class . '|' . RoleCollectionInterface::class,
+            );
+        }
+
+        if ($actor instanceof Guest) {
+            return $this->deny('Guest actor has no role hierarchy');
+        }
+
+        $actorRoles = $this->extractRole($actor);
+
+        if ($actorRoles === null) {
+            throw InvalidPolicyActorException::expected(
+                actor: $actor,
                 expectedType: RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class . '|' . RoleInterface::class . '|' . RoleCollectionInterface::class,
             );
         }
