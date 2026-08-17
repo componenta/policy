@@ -81,6 +81,34 @@ describe('PolicyProviderFactory', function () {
             ->toThrow(InvalidCompiledPolicyException::class, 'broken');
     });
 
+    it('keeps malformed descriptors visible to strict compiled mode', function (): void {
+        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
+            ConfigKey::COMPILED_POLICIES => [
+                'broken' => 'not-a-descriptor',
+            ],
+            ConfigKey::COMPILED_POLICIES_STRICT => true,
+        ]));
+
+        expect(fn() => $provider->provideFor('broken'))
+            ->toThrow(InvalidCompiledPolicyException::class, 'broken');
+    });
+
+    it('allows tolerant compiled mode to fall through malformed descriptors', function (): void {
+        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
+            ConfigKey::COMPILED_POLICIES => [
+                'broken' => 'not-a-descriptor',
+            ],
+        ]));
+
+        expect($provider->provideFor('broken'))->toBeNull();
+    });
+
+    it('rejects invalid inline compiled map configuration eagerly', function (): void {
+        expect(fn() => (new PolicyProviderFactory())(policyProviderContainerValue([
+            ConfigKey::COMPILED_POLICIES => 'invalid',
+        ])))->toThrow(InvalidArgumentException::class, ConfigKey::COMPILED_POLICIES);
+    });
+
     it('rejects invalid custom provider configuration eagerly', function (): void {
         expect(fn() => (new PolicyProviderFactory())(policyProviderContainerValue([
             ConfigKey::PROVIDERS => [stdClass::class],
