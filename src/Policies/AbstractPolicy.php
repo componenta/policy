@@ -12,10 +12,11 @@ use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\PolicyInterface;
 
 /**
- * Base class offering common helpers for custom policies: {@see self::deny()}
- * (produces a {@see DenyReason} pre-tagged with the current policy class) and
- * {@see self::extractRole()} (accepts either a {@see RoleAwareInterface} actor
- * or a {@see RoleInterface} directly).
+ * Base class offering common helpers for custom policies.
+ *
+ * {@see self::deny()} produces a {@see DenyReason} tagged with the current
+ * policy class. {@see self::extractRole()} accepts a role or role collection
+ * directly, or extracts one from the corresponding actor capability.
  */
 abstract class AbstractPolicy implements PolicyInterface
 {
@@ -26,7 +27,7 @@ abstract class AbstractPolicy implements PolicyInterface
 
     protected function extractRole(object $actor): null|RoleInterface|RoleCollectionInterface
     {
-        if ($actor instanceof RoleInterface) {
+        if ($actor instanceof RoleInterface || $actor instanceof RoleCollectionInterface) {
             return $actor;
         }
 
