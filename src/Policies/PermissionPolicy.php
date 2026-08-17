@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Policy\Policies;
 
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Actor\PermissionAwareInterface;
 use Componenta\Policy\Actor\RoleAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionAwareInterface;
@@ -27,10 +28,11 @@ use InvalidArgumentException;
  * All discovered sources are merged into one effective permission collection;
  * granting a permission via any source is enough.
  *
- * Applicable directly as a PHP attribute.
+ * {@see Guest} is a valid anonymous actor and is denied normally. Other actor
+ * objects that expose none of the supported permission/role capabilities are
+ * treated as a policy integration error.
  *
- * Throws when the actor exposes neither permissions nor roles because the
- * policy cannot be evaluated for such actor.
+ * Applicable directly as a PHP attribute.
  */
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
 final class PermissionPolicy extends AbstractPolicy
@@ -55,6 +57,10 @@ final class PermissionPolicy extends AbstractPolicy
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
     {
+        if ($actor instanceof Guest) {
+            return $this->deny('Guest actor has no permissions');
+        }
+
         $held = $this->extractPermissions($actor);
 
         if ($held === null) {
