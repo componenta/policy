@@ -23,7 +23,7 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
     /** @var array<string, PolicyInterface> */
     private array $resolved = [];
 
-    /** @param array<string, array<string, mixed>> $policies */
+    /** @param array<string, mixed> $policies */
     public function __construct(
         private readonly FactoryInterface $factory,
         private readonly array $policies,
@@ -36,9 +36,17 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
             return $this->resolved[$actionId];
         }
 
-        $descriptor = $this->policies[$actionId] ?? null;
+        if (!array_key_exists($actionId, $this->policies)) {
+            return null;
+        }
 
-        if (!is_array($descriptor)) {
+        $descriptor = $this->normalizeDescriptor($this->policies[$actionId]);
+
+        if ($descriptor === null) {
+            if ($this->strict) {
+                throw InvalidCompiledPolicyException::forAction($actionId);
+            }
+
             return null;
         }
 
@@ -53,6 +61,26 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         }
 
         return $this->resolved[$actionId] = $policy;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function normalizeDescriptor(mixed $descriptor): ?array
+    {
+        if (!is_array($descriptor)) {
+            return null;
+        }
+
+        $normalized = [];
+
+        foreach ($descriptor as $key => $value) {
+            if (!is_string($key)) {
+                return null;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 
     /** @param array<string, mixed> $descriptor */
@@ -119,18 +147,9 @@ final class CompiledPolicyProvider implements PolicyProviderInterface
         $policies = [];
 
         foreach ($children as $child) {
-            if (!is_array($child)) {
+            $normalized = $this->normalizeDescriptor($child);
+            if ($normalized === null) {
                 return null;
-            }
-
-            $normalized = [];
-
-            foreach ($child as $key => $value) {
-                if (!is_string($key)) {
-                    return null;
-                }
-
-                $normalized[$key] = $value;
             }
 
             $policy = $this->build($actionId, $normalized);
