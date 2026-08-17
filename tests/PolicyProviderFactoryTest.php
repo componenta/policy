@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Componenta\Config\Config;
+use Componenta\Config\ContainerValue;
 use Componenta\DI\FactoryInterface;
 use Componenta\Policy\ConfigKey;
 use Componenta\Policy\Context\Context;
@@ -15,12 +16,20 @@ use Componenta\Policy\Tests\Fixture\FakeContainer;
 use Componenta\Policy\Tests\Fixture\FakeFactory;
 use Componenta\Policy\Tests\Fixture\FakeRole;
 
+/** @param array<string, mixed> $policyConfig */
+function policyProviderContainerValue(array $policyConfig = []): ContainerValue
+{
+    return new ContainerValue(
+        new FakeContainer([
+            FactoryInterface::class => new FakeFactory(),
+        ]),
+        new Config([ConfigKey::POLICY => $policyConfig]),
+    );
+}
+
 describe('PolicyProviderFactory', function () {
     it('does not require app path resolver when compiled policy cache is not configured', function () {
-        $provider = (new PolicyProviderFactory())(new FakeContainer([
-            'config' => new Config([ConfigKey::POLICY => []]),
-            FactoryInterface::class => new FakeFactory(),
-        ]));
+        $provider = (new PolicyProviderFactory())(policyProviderContainerValue());
 
         expect($provider)->toBeInstanceOf(AttributePolicyProvider::class);
     });
@@ -43,13 +52,8 @@ describe('PolicyProviderFactory', function () {
         ], true) . ';');
 
         try {
-            $provider = (new PolicyProviderFactory())(new FakeContainer([
-                'config' => new Config([
-                    ConfigKey::POLICY => [
-                        ConfigKey::COMPILED_POLICIES_FILE => $file,
-                    ],
-                ]),
-                FactoryInterface::class => new FakeFactory(),
+            $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
+                ConfigKey::COMPILED_POLICIES_FILE => $file,
             ]));
 
             $policy = $provider->provideFor('posts.create');
@@ -62,23 +66,35 @@ describe('PolicyProviderFactory', function () {
     });
 
     it('passes strict compiled policy mode to the compiled provider', function () {
-        $provider = (new PolicyProviderFactory())(new FakeContainer([
-            'config' => new Config([
-                ConfigKey::POLICY => [
-                    ConfigKey::COMPILED_POLICIES => [
-                        'broken' => [
-                            'kind' => 'direct',
-                            'class' => 'MissingPolicy',
-                            'arguments' => [],
-                        ],
-                    ],
-                    ConfigKey::COMPILED_POLICIES_STRICT => true,
+        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
+            ConfigKey::COMPILED_POLICIES => [
+                'broken' => [
+                    'kind' => 'direct',
+                    'class' => 'MissingPolicy',
+                    'arguments' => [],
                 ],
-            ]),
-            FactoryInterface::class => new FakeFactory(),
+            ],
+            ConfigKey::COMPILED_POLICIES_STRICT => true,
         ]));
 
         expect(fn () => $provider->provideFor('broken'))
             ->toThrow(InvalidCompiledPolicyException::class, 'broken');
+    });
+
+    it('rejects invalid custom provider configuration eagerly', function (): void {
+        expect(fn() => (new PolicyProviderFactory())(policyProviderContainerValue([
+            ConfigKey::PROVIDERS => [stdClass::class],
+        ])))->toThrow(InvalidArgumentException::class, 'PolicyProviderInterface');
+    });
+
+    it('validates configured policy factory results', function (): void {
+        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
+            ConfigKey::POLICIES => [
+                'broken' => static fn() => new stdClass(),
+            ],
+        ]));
+
+        expect(fn() => $provider->provideFor('broken'))
+            ->toThrow(InvalidArgumentException::class, 'must return');
     });
 });
