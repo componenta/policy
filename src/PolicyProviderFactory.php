@@ -134,7 +134,7 @@ final class PolicyProviderFactory
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param array<array-key, mixed> $config
      * @return array<string, array<string, mixed>>
      */
     private function compiledPolicies(array $config): array
