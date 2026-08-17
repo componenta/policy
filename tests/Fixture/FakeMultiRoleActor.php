@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Componenta\Policy\Tests\Fixture;
 
+use Componenta\Identity\IdentityInterface;
 use Componenta\Identity\Uuid;
 use Componenta\Identity\UuidInterface;
-use Componenta\Policy\Actor\ActorInterface;
+use Componenta\Policy\Actor\PermissionAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionInterface;
 use Componenta\Policy\Actor\RoleInterface;
 use Componenta\Policy\Permission\PermissionCollection;
 use Componenta\Policy\Permission\PermissionCollectionInterface;
 
-final readonly class FakeMultiRoleActor implements ActorInterface, RoleCollectionAwareInterface
+final readonly class FakeMultiRoleActor implements IdentityInterface, PermissionAwareInterface, RoleCollectionAwareInterface
 {
     public PermissionCollectionInterface $permissions;
     public RoleCollectionInterface $roles;
