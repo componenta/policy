@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -69,7 +70,15 @@ it('accepts role instances directly as actor and target', function () {
     expect((new HierarchyPolicy())->enforce($actor, $context))->toBeTrue();
 });
 
-it('throws when the actor has no role', function () {
+it('denies Guest as a valid anonymous actor', function () {
+    $target = new FakeActor(2, new FakeRole('user'));
+    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
+
+    expect((new HierarchyPolicy())->enforce(new Guest(), $context))
+        ->toBeInstanceOf(DenyReason::class);
+});
+
+it('throws when an unknown actor has no role', function () {
     $target = new FakeActor(2, new FakeRole('user'));
     $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
 
