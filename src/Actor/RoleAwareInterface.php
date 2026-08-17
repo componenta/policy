@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Componenta\Policy\Actor;
 
 /**
- * Exposes a role. Implemented by actors that are classified by a role
- * (e.g. for hierarchy comparisons or role-name allowlists). Orthogonal to
- * {@see ActorInterface}: an actor may implement both, or neither.
+ * Exposes one role for policies that use role names or hierarchy relations.
+ *
+ * This capability is independent from identity and permission capabilities;
+ * domain actors implement only the contracts their policies require.
  */
 interface RoleAwareInterface
 {
