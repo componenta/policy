@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php: ['8.4', '8.5']
     steps:
@@ -26,18 +27,34 @@ jobs:
       - name: Configure Composer authentication
         run: composer config --global github-oauth.github.com "${{ github.token }}"
       - run: composer validate --strict
-      - run: composer install --no-interaction --prefer-dist
-      - name: Run package tests
+      - name: Resolve Composer cache directory
+        id: composer-cache
         shell: bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+      - name: Install dependencies
+        shell: bash
+        env:
+          COMPOSER_MAX_PARALLEL_HTTP: 1
         run: |
           set -euo pipefail
-          if php -r '$c=json_decode(file_get_contents("composer.json"), true, 512, JSON_THROW_ON_ERROR); exit(isset($c["scripts"]["test"]) ? 0 : 1);'; then
-            composer test
-          elif [ -x vendor/bin/pest ]; then
-            vendor/bin/pest
-          elif [ -x vendor/bin/phpunit ]; then
-            vendor/bin/phpunit
-          fi
+          for attempt in 1 2 3; do
+            if composer install --no-interaction --prefer-source --no-progress; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+
+            sleep $((attempt * 20))
+          done
+      - run: composer test
 
   publish:
     if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Release v')
