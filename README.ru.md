@@ -267,7 +267,7 @@ interface RoleCollectionInterface extends IteratorAggregate, Countable
 ```php
 interface ActorAwareInterface
 {
-    public ActorInterface $actor { get; }
+    public object $actor { get; }
 }
 
 interface ActorProviderInterface
@@ -276,7 +276,9 @@ interface ActorProviderInterface
 }
 ```
 
-`ActorAwareInterface` подходит для команд или запросов, которые уже несут актора внутри себя. `ActorProviderInterface` нужен, когда текущий пользователь берется из внешнего окружения: HTTP-запроса, сессии, токена или процесса воркера. `getActor()` может вернуть `null` для анонимного доступа; как именно это обрабатывается, решает интеграционный слой. Встроенные политики все равно проверяют нужный им интерфейс актора самостоятельно.
+`ActorAwareInterface` подходит для команд, запросов и других объектов, которые явно несут субъект политики. Актор намеренно типизирован как `object`; универсального составного интерфейса актора нет. Модель пользователя или другой доменный субъект реализует только те capability-интерфейсы, которые реально нужны его политикам: например `IdentityInterface`, `PermissionAwareInterface`, `RoleAwareInterface` или `RoleCollectionAwareInterface`.
+
+`ActorProviderInterface` нужен интеграциям, которые получают текущего актора из внешнего окружения — HTTP-запроса, сессии или токена. `getActor()` может вернуть `null`; как именно это интерпретируется — как гостевой доступ или отсутствие аутентификации — решает интеграционный слой. Встроенные политики проверяют только необходимые им способности актора.
 
 Разрешение — любой объект `PermissionInterface`:
 
