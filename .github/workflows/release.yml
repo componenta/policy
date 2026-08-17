@@ -55,6 +55,7 @@ jobs:
             sleep $((attempt * 20))
           done
       - run: composer test
+      - run: composer analyse
 
   publish:
     if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Release v')
