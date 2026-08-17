@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\ContainsMode;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
@@ -98,7 +99,12 @@ describe('mode=Any', function () {
     });
 });
 
-it('throws when the actor does not expose a permission set', function () {
+it('denies Guest as a valid anonymous actor', function () {
+    expect((new PermissionPolicy(new FakePermission('x')))->enforce(new Guest(), $this->context))
+        ->toBeInstanceOf(DenyReason::class);
+});
+
+it('throws when an unknown actor does not expose a permission set', function () {
     expect(fn() => (new PermissionPolicy(new FakePermission('x')))->enforce(new stdClass(), $this->context))
         ->toThrow(InvalidPolicyActorException::class);
 });
