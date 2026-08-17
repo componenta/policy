@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Componenta\Policy\Actor\Guest;
+use Componenta\Policy\Actor\RoleCollection;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -39,6 +40,31 @@ it('allows when one actor role outranks every target role', function () {
         $actor,
         new Context([HierarchyPolicy::ATTR_TARGET => $target]),
     ))->toBeTrue();
+});
+
+it('accepts role collections directly as actor and target', function (): void {
+    $actor = new RoleCollection([
+        new FakeRole('editor', rank: 2),
+        new FakeRole('admin', rank: 10),
+    ]);
+    $target = new RoleCollection([
+        new FakeRole('user', rank: 1),
+        new FakeRole('moderator', rank: 5),
+    ]);
+
+    expect((new HierarchyPolicy())->enforce(
+        $actor,
+        new Context([HierarchyPolicy::ATTR_TARGET => $target]),
+    ))->toBeTrue();
+});
+
+it('denies an empty role collection as a valid actor role source', function (): void {
+    expect((new HierarchyPolicy())->enforce(
+        new RoleCollection(),
+        new Context([
+            HierarchyPolicy::ATTR_TARGET => new FakeRole('user', rank: 1),
+        ]),
+    ))->toBeInstanceOf(DenyReason::class);
 });
 
 it('denies when the actor role does not outrank the target role', function () {
