@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -52,7 +53,12 @@ it('denies an actor whose role collection does not contain an allowed role', fun
     expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
 });
 
-it('throws when the actor does not expose a role', function () {
+it('denies Guest as a valid anonymous actor', function () {
+    expect((new RolePolicy('admin'))->enforce(new Guest(), $this->context))
+        ->toBeInstanceOf(DenyReason::class);
+});
+
+it('throws when an unknown actor does not expose a role', function () {
     $policy = new RolePolicy('admin');
 
     expect(fn() => $policy->enforce(new stdClass(), $this->context))
