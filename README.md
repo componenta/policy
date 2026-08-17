@@ -267,7 +267,7 @@ Middleware and other integrations can use two additional contracts:
 ```php
 interface ActorAwareInterface
 {
-    public ActorInterface $actor { get; }
+    public object $actor { get; }
 }
 
 interface ActorProviderInterface
@@ -276,7 +276,9 @@ interface ActorProviderInterface
 }
 ```
 
-`ActorAwareInterface` fits commands or queries that already carry the actor. `ActorProviderInterface` is for resolving the current user from an external environment: HTTP request, session, token, or worker process. `getActor()` may return `null` for anonymous access; the integration layer decides how to handle that. Built-in policies still validate the actor interface they need.
+`ActorAwareInterface` fits commands, queries, or other objects that explicitly carry the policy subject. The actor is deliberately typed as `object`; there is no universal actor composite. User and domain models implement only the capability interfaces their policies require, such as `IdentityInterface`, `PermissionAwareInterface`, `RoleAwareInterface`, or `RoleCollectionAwareInterface`.
+
+`ActorProviderInterface` is for integrations that resolve a current actor from an external environment such as an HTTP request, session, or token. `getActor()` may return `null`; the integration layer decides whether that means guest access or missing authentication. Built-in policies validate only the capabilities they actually need.
 
 A permission is any `PermissionInterface` object:
 
