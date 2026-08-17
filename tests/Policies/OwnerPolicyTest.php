@@ -55,6 +55,11 @@ it('throws when the context does not carry a resource', function () {
         ->toThrow(MissingPolicyContextAttributeException::class);
 });
 
+it('does not let Guest hide a missing resource context', function () {
+    expect(fn() => (new OwnerPolicy())->enforce(new Guest(), new Context()))
+        ->toThrow(MissingPolicyContextAttributeException::class);
+});
+
 it('throws when the resource does not implement OwnableInterface', function () {
     $actor = new FakeIdentity(Uuid::fromString('00000000-0000-7000-8000-000000000001'));
     $context = new Context([OwnerPolicy::ATTR_RESOURCE => new stdClass()]);
