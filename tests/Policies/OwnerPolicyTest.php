@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Componenta\Identity\Uuid;
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -29,7 +30,16 @@ it('denies when the actor uuid does not match the resource owner uuid', function
     expect((new OwnerPolicy())->enforce($actor, $context))->toBeInstanceOf(DenyReason::class);
 });
 
-it('throws when the actor is not an identity', function () {
+it('denies Guest as a valid anonymous actor', function () {
+    $context = new Context([
+        OwnerPolicy::ATTR_RESOURCE => new FakeOwnable('00000000-0000-7000-8000-000000000001'),
+    ]);
+
+    expect((new OwnerPolicy())->enforce(new Guest(), $context))
+        ->toBeInstanceOf(DenyReason::class);
+});
+
+it('throws when an unknown actor is not an identity', function () {
     $context = new Context([
         OwnerPolicy::ATTR_RESOURCE => new FakeOwnable('00000000-0000-7000-8000-000000000001'),
     ]);
