@@ -9,9 +9,9 @@ use Componenta\Policy\Permission\PermissionCollectionInterface;
 /**
  * Exposes a read-only collection of permissions.
  *
- * Implemented by {@see ActorInterface} (actor's effective permissions - typically
- * the aggregate of role permissions and any permissions granted directly to the
- * actor) and by {@see RoleInterface} (permissions attached to a role).
+ * Actors may use this capability for permissions granted directly or computed
+ * from domain state. {@see RoleInterface} uses the same capability for the
+ * permissions attached to a role.
  */
 interface PermissionAwareInterface
 {
