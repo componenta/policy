@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Policy\Policies;
 
+use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Actor\RoleAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionInterface;
@@ -16,10 +17,11 @@ use Componenta\Policy\Exception\InvalidPolicyActorException;
  * Allows the action when the actor's role name is in the configured allowlist.
  *
  * The actor may expose a single role, a role collection, or be a
- * {@see RoleInterface}/{@see RoleCollectionInterface} directly.
+ * {@see RoleInterface}/{@see RoleCollectionInterface} directly. {@see Guest}
+ * is a valid anonymous actor and is denied normally. Other actors that expose
+ * no supported role capability are treated as a policy integration error.
  *
- * Applicable directly as a PHP attribute; throws if the actor exposes no role
- * because the policy cannot be evaluated.
+ * Applicable directly as a PHP attribute.
  */
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
 final class RolePolicy extends AbstractPolicy
@@ -37,6 +39,10 @@ final class RolePolicy extends AbstractPolicy
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
     {
+        if ($actor instanceof Guest) {
+            return $this->deny('Guest actor has no roles');
+        }
+
         $role = $this->extractRole($actor);
 
         if ($role === null) {
