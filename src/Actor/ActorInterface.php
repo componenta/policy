@@ -7,16 +7,14 @@ namespace Componenta\Policy\Actor;
 use Componenta\Identity\IdentityInterface;
 
 /**
- * Identity-bearing permission entity consumed by built-in permission
- * policies ({@see \Componenta\Policy\Policies\PermissionPolicy}).
+ * Legacy convenience composite for an identity-bearing permission actor.
  *
- * Role-aware actors additionally implement {@see RoleAwareInterface}; that
- * unlocks {@see \Componenta\Policy\Policies\RolePolicy},
- * {@see \Componenta\Policy\Policies\HierarchyPolicy} and the role-based branch of
- * {@see \Componenta\Policy\Policies\OwnerPolicy}.
+ * PolicyEnforcer and ActorAwareInterface accept any object. New domain models
+ * should implement only the capabilities they actually expose, for example
+ * IdentityInterface, PermissionAwareInterface, RoleAwareInterface, or their
+ * relevant combination.
  *
- * Custom policies can accept any `object` - actor typing is not enforced by
- * {@see \Componenta\Policy\PolicyInterface}.
+ * @deprecated Implement the required capability interfaces directly.
  */
 interface ActorInterface extends IdentityInterface, PermissionAwareInterface
 {
