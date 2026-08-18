@@ -57,9 +57,29 @@ jobs:
       - run: composer test
       - run: composer analyse
 
+  verify-lowest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+      - name: Configure Composer authentication
+        run: composer config --global github-oauth.github.com "${{ github.token }}"
+      - run: composer validate --strict
+      - name: Install lowest satisfiable dependency set
+        shell: bash
+        env:
+          COMPOSER_MAX_PARALLEL_HTTP: 1
+        run: composer update --prefer-lowest --prefer-stable --with-all-dependencies --no-interaction --prefer-dist --no-progress
+      - run: composer test
+      - run: composer analyse
+
   publish:
     if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Release v')
-    needs: verify
+    needs: [verify, verify-lowest]
     runs-on: ubuntu-latest
     permissions:
       contents: write
