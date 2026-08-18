@@ -12,6 +12,7 @@ use Componenta\Policy\Actor\RoleInterface;
 use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
+use InvalidArgumentException;
 
 /**
  * Allows the action when the actor's role name is in the configured allowlist.
@@ -31,10 +32,23 @@ final class RolePolicy extends AbstractPolicy
 
     /**
      * @param string|string[] $roles Role name(s) granted access.
+     *
+     * @throws InvalidArgumentException If an array contains a non-string role name.
      */
     public function __construct(string|array $roles)
     {
-        $this->roles = (array) $roles;
+        $roles = (array) $roles;
+
+        foreach ($roles as $role) {
+            if (!is_string($role)) {
+                throw new InvalidArgumentException(sprintf(
+                    'RolePolicy expects role names to be strings; %s given.',
+                    get_debug_type($role),
+                ));
+            }
+        }
+
+        $this->roles = $roles;
     }
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
@@ -77,9 +91,7 @@ final class RolePolicy extends AbstractPolicy
         ));
     }
 
-    /**
-     * @return string[]
-     */
+    /** @return string[] */
     private static function roleNames(RoleCollectionInterface $roles): array
     {
         $names = [];
