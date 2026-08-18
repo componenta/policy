@@ -35,7 +35,7 @@ interface PolicyInterface
 - `RoleInterface` или `RoleCollectionInterface` напрямую там, где role-policy принимает сами объекты ролей;
 - прикладные capability-интерфейсы для пользовательских политик.
 
-`RoleInterface` предоставляет стабильное имя через read-only свойство `public string $name`. `RoleCollection` и встроенные role-policy работают именно с этим свойством; legacy-контракта `getName()` у роли нет.
+`RoleInterface` предоставляет стабильное имя через read-only свойство `public string $name`. `RoleCollection` и встроенные role-policy работают именно с этим свойством.
 
 ## Семантика актора
 
