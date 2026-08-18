@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Componenta\Policy\Tests\Fixture;
 
 use Componenta\DI\FactoryInterface;
-use Componenta\DI\ProxyType;
 
 /**
  * Minimal FactoryInterface implementation for tests.
@@ -13,7 +12,7 @@ use Componenta\DI\ProxyType;
  */
 final class FakeFactory implements FactoryInterface
 {
-    public function make(string $entry, array $params = [], ?ProxyType $type = null): object
+    public function make(string $entry, array $params = []): object
     {
         return new $entry(...$params);
     }
