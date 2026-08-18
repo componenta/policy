@@ -30,6 +30,18 @@ it('allows an actor whose role name is in a multi-name allowlist', function () {
     expect($policy->enforce($actor, $this->context))->toBeTrue();
 });
 
+it('rejects non-string role names at configuration time', function (): void {
+    expect(fn() => new RolePolicy(['admin', 42]))
+        ->toThrow(InvalidArgumentException::class, 'role names to be strings');
+});
+
+it('keeps an empty allowlist as an explicit deny-all policy', function (): void {
+    $policy = new RolePolicy([]);
+
+    expect($policy->enforce(new FakeActor(1, new FakeRole('admin')), $this->context))
+        ->toBeInstanceOf(DenyReason::class);
+});
+
 it('allows an actor whose role collection contains an allowed role', function () {
     $policy = new RolePolicy(['admin', 'moderator']);
     $actor = new FakeMultiRoleActor(1, new FakeRole('editor'), new FakeRole('moderator'));
