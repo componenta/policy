@@ -35,7 +35,7 @@ There is no universal actor composite interface. `PolicyEnforcer` accepts `objec
 - `RoleInterface` or `RoleCollectionInterface` directly where role policies accept role objects themselves;
 - application-specific capability interfaces for custom policies.
 
-`RoleInterface` exposes its stable name through the read-only `public string $name` property. `RoleCollection` and the built-in role policies use that property directly; no legacy `getName()` role contract exists.
+`RoleInterface` exposes its stable name through the read-only `public string $name` property. `RoleCollection` and the built-in role policies use that property directly.
 
 ## Actor semantics
 
