@@ -55,7 +55,7 @@ interface ActorProviderInterface
 
 `ActorAwareInterface` is for messages and other objects that explicitly carry the policy subject.
 
-`ActorProviderInterface` resolves a subject from an integration-specific environment such as an HTTP request, session, token, or worker context. Its result has three distinct meanings:
+`ActorProviderInterface` resolves a subject from an integration-specific source such as an HTTP request, session, or authentication token. Its result has three distinct meanings:
 
 ```text
 concrete object -> resolved actor
