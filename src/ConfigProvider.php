@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace Componenta\Policy;
 
 use Componenta\Policy\Actor\ActorProviderInterface;
+use Componenta\Policy\Actor\GuestActorProvider;
 use Componenta\Policy\Context\ContextFactory;
 use Componenta\Policy\Context\ContextFactoryInterface;
 
-/**
- * Registers policy services with the DI container.
- */
+/** Registers policy services with the DI container. */
 class ConfigProvider extends \Componenta\Config\ConfigProvider
 {
     protected function getFactories(): array
@@ -18,7 +17,6 @@ class ConfigProvider extends \Componenta\Config\ConfigProvider
         return [
             PolicyEnforcer::class => PolicyEnforcerFactory::class,
             PolicyProviderInterface::class => PolicyProviderFactory::class,
-            ActorProviderInterface::class => GuestActorProviderFactory::class,
         ];
     }
 
@@ -26,6 +24,7 @@ class ConfigProvider extends \Componenta\Config\ConfigProvider
     {
         return [
             ContextFactoryInterface::class => ContextFactory::class,
+            ActorProviderInterface::class => GuestActorProvider::class,
         ];
     }
 }
