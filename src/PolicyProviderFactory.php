@@ -8,7 +8,6 @@ use Componenta\Config\ContainerValue;
 use Componenta\DI\FactoryInterface;
 use Componenta\Policy\Provider\ArrayPolicyProvider;
 use Componenta\Policy\Provider\AttributePolicyProvider;
-use Componenta\Policy\Provider\CompiledPolicyProvider;
 use Componenta\Policy\Provider\CompositePolicyProvider;
 use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
@@ -25,24 +24,14 @@ final class PolicyProviderFactory
 
         $policies = $this->configuredPolicies($config[ConfigKey::POLICIES] ?? []);
         if ($policies !== []) {
-            $providers[] = new ArrayPolicyProvider($container->value, $policies);
+            $providers[] = new ArrayPolicyProvider($container, $policies);
         }
 
         foreach ($this->providerClasses($config[ConfigKey::PROVIDERS] ?? []) as $providerClass) {
             $providers[] = $container->get($providerClass, PolicyProviderInterface::class);
         }
 
-        $compiledPolicies = $this->compiledPolicies($config);
         $factory = $container->get(FactoryInterface::class, FactoryInterface::class);
-
-        if ($compiledPolicies !== []) {
-            $providers[] = new CompiledPolicyProvider(
-                $factory,
-                $compiledPolicies,
-                ($config[ConfigKey::COMPILED_POLICIES_STRICT] ?? false) === true,
-            );
-        }
-
         $providers[] = new AttributePolicyProvider($factory);
 
         if (count($providers) === 1) {
@@ -133,59 +122,4 @@ final class PolicyProviderFactory
         return $result;
     }
 
-    /**
-     * @param array<array-key, mixed> $config
-     * @return array<string, mixed>
-     */
-    private function compiledPolicies(array $config): array
-    {
-        if (array_key_exists(ConfigKey::COMPILED_POLICIES, $config)) {
-            $inline = $config[ConfigKey::COMPILED_POLICIES];
-
-            if (!is_array($inline)) {
-                throw new InvalidArgumentException(sprintf(
-                    'Policy configuration "%s" must be an array; %s given.',
-                    ConfigKey::COMPILED_POLICIES,
-                    get_debug_type($inline),
-                ));
-            }
-
-            if ($inline !== []) {
-                return $this->normalizeCompiledMap($inline);
-            }
-        }
-
-        $file = $config[ConfigKey::COMPILED_POLICIES_FILE] ?? null;
-        if (!is_string($file) || $file === '' || !is_file($file)) {
-            return [];
-        }
-
-        $payload = require $file;
-
-        if (!is_array($payload) || ($payload['version'] ?? null) !== ConfigKey::CACHE_VERSION) {
-            return [];
-        }
-
-        return $this->normalizeCompiledMap($payload['map'] ?? []);
-    }
-
-    /** @return array<string, mixed> */
-    private function normalizeCompiledMap(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($value as $actionId => $descriptor) {
-            if (!is_string($actionId) || $actionId === '') {
-                continue;
-            }
-
-            $result[$actionId] = $descriptor;
-        }
-
-        return $result;
-    }
 }

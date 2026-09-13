@@ -15,7 +15,7 @@ use Componenta\Policy\Tests\Fixture\FakeContainer;
 
 function policyEnforcerContainerValue(mixed $behavior = MissingPolicyBehavior::DENY): ContainerValue
 {
-    $provider = new class implements PolicyProviderInterface {
+    $provider = new class () implements PolicyProviderInterface {
         public function provideFor(string $actionId): ?Componenta\Policy\PolicyInterface
         {
             return null;
@@ -31,7 +31,7 @@ function policyEnforcerContainerValue(mixed $behavior = MissingPolicyBehavior::D
             ConfigKey::POLICY => [
                 ConfigKey::MISSING_POLICY_BEHAVIOR => $behavior,
             ],
-        ]),
+        ], new \Componenta\Config\Environment([])),
     );
 }
 
@@ -44,7 +44,7 @@ it('builds the enforcer from typed ContainerValue services and policy config', f
 });
 
 it('rejects an invalid missing-policy behavior configuration', function (): void {
-    expect(fn() => (new PolicyEnforcerFactory())(
+    expect(fn () => (new PolicyEnforcerFactory())(
         policyEnforcerContainerValue('allow'),
     ))->toThrow(InvalidArgumentException::class, MissingPolicyBehavior::class);
 });

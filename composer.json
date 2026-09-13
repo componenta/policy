@@ -6,8 +6,8 @@
     "require": {
         "php": "^8.4",
         "componenta/arrayable": "^1.0",
-        "componenta/config": "^2.0.2",
-        "componenta/di": "^2.0 || ^3.0 || ^4.0.2",
+        "componenta/config": "^3.0.0",
+        "componenta/di": "^5.0.0",
         "componenta/identity": "^1.0",
         "psr/container": "^2.0"
     },
@@ -31,6 +31,9 @@
             "config-providers": [
                 "Componenta\\Policy\\ConfigProvider"
             ]
+        },
+        "branch-alias": {
+            "dev-main": "2.0.x-dev"
         }
     },
     "config": {

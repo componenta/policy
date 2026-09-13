@@ -161,9 +161,10 @@ Policies that require context validate it explicitly:
 - `CompositePolicyProvider` — first matching provider wins;
 - `AllOfPolicyProvider` — combines policies found in multiple providers with `AllOf`;
 - `OneOfPolicyProvider` — combines policies found in multiple providers with `OneOf`;
-- `CompiledPolicyProvider` — consumes descriptors produced by `componenta/policy-app`.
 
-The default `PolicyProviderFactory` composes configured policy maps, custom providers, compiled policy descriptors, and attribute fallback. Configuration-aware DI factories receive `Componenta\Config\ContainerValue`; they use its typed service access and its `Config` value instead of treating configuration as an untyped container entry.
+The default `PolicyProviderFactory` composes configured policy maps, custom providers, and native attributes in that order. Attribute policies are resolved once per action ID and cached in memory for the provider lifetime. Policy constructors and DI failures propagate normally. Configuration-aware factories receive `Componenta\Config\ContainerValue`.
+
+Disk policy compilation has been removed. Remove `compiled_policies`, `compiled_policies_file` and `compiled_policies_strict` settings, and remove `componenta/policy-app`. Register this package's ConfigProvider directly. Existing disk artifacts are unused; policy requires no application builder.
 
 Configured provider class names and policy-map shapes are validated before use. Lazy configured policy factories must resolve to `PolicyInterface`.
 

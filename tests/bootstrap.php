@@ -2,32 +2,19 @@
 
 declare(strict_types=1);
 
-$autoloadFiles = [
-    __DIR__ . '/../vendor/autoload.php',
-    __DIR__ . '/../../../autoload.php',
-];
-
-foreach ($autoloadFiles as $autoloadFile) {
-    if (is_file($autoloadFile)) {
-        require $autoloadFile;
-
-        spl_autoload_register(static function (string $class): void {
-            $prefix = 'Componenta\\Policy\\Tests\\';
-
-            if (!str_starts_with($class, $prefix)) {
-                return;
-            }
-
-            $relative = substr($class, strlen($prefix));
-            $file = __DIR__ . '/' . str_replace('\\', '/', $relative) . '.php';
-
-            if (is_file($file)) {
-                require $file;
-            }
-        });
-
-        return;
+$package = dirname(__DIR__);
+$packages = dirname($package);
+$workspace = dirname($packages);
+$localAutoload = $package . '/vendor/autoload.php';
+$loader = require is_file($localAutoload) ? $localAutoload : $packages . '/var-export/vendor/autoload.php';
+if (!is_file($localAutoload)) {
+    foreach (require $workspace . '/vendor/composer/autoload_psr4.php' as $prefix => $paths) {
+        $loader->addPsr4($prefix, $paths);
     }
+    $loader->setPsr4('Componenta\\Config\\', $packages . '/config/src');
+    $loader->setPsr4('Componenta\\DI\\', $packages . '/di/src');
+    require_once $packages . '/config/src/functions.php';
+    require_once $packages . '/di/src/Internal/functions.php';
 }
-
-throw new RuntimeException('Unable to locate Composer autoload.php for componenta/policy tests.');
+$loader->setPsr4('Componenta\\Policy\\', $package . '/src');
+$loader->setPsr4('Componenta\\Policy\\Tests\\', __DIR__);

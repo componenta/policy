@@ -7,7 +7,6 @@ use Componenta\Config\ContainerValue;
 use Componenta\DI\FactoryInterface;
 use Componenta\Policy\ConfigKey;
 use Componenta\Policy\Context\Context;
-use Componenta\Policy\Exception\InvalidCompiledPolicyException;
 use Componenta\Policy\Policies\Allow;
 use Componenta\Policy\PolicyProviderFactory;
 use Componenta\Policy\Provider\AttributePolicyProvider;
@@ -23,94 +22,19 @@ function policyProviderContainerValue(array $policyConfig = []): ContainerValue
         new FakeContainer([
             FactoryInterface::class => new FakeFactory(),
         ]),
-        new Config([ConfigKey::POLICY => $policyConfig]),
+        new Config([ConfigKey::POLICY => $policyConfig], new \Componenta\Config\Environment([])),
     );
 }
 
 describe('PolicyProviderFactory', function () {
-    it('does not require app path resolver when compiled policy cache is not configured', function () {
+    it('creates the attribute provider without an app path resolver', function () {
         $provider = (new PolicyProviderFactory())(policyProviderContainerValue());
 
         expect($provider)->toBeInstanceOf(AttributePolicyProvider::class);
     });
 
-    it('loads compiled policies from the configured cache file path', function () {
-        $file = tempnam(sys_get_temp_dir(), 'componenta-policy-cache-');
-        if ($file === false) {
-            throw new RuntimeException('Unable to create temp file.');
-        }
-
-        file_put_contents($file, '<?php return ' . var_export([
-            'version' => ConfigKey::CACHE_VERSION,
-            'map' => [
-                'posts.create' => [
-                    'kind' => 'direct',
-                    'class' => Allow::class,
-                    'arguments' => [],
-                ],
-            ],
-        ], true) . ';');
-
-        try {
-            $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
-                ConfigKey::COMPILED_POLICIES_FILE => $file,
-            ]));
-
-            $policy = $provider->provideFor('posts.create');
-
-            expect($policy?->enforce(new FakeActor(1, new FakeRole('admin')), new Context()))
-                ->toBeTrue();
-        } finally {
-            unlink($file);
-        }
-    });
-
-    it('passes strict compiled policy mode to the compiled provider', function () {
-        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
-            ConfigKey::COMPILED_POLICIES => [
-                'broken' => [
-                    'kind' => 'direct',
-                    'class' => 'MissingPolicy',
-                    'arguments' => [],
-                ],
-            ],
-            ConfigKey::COMPILED_POLICIES_STRICT => true,
-        ]));
-
-        expect(fn () => $provider->provideFor('broken'))
-            ->toThrow(InvalidCompiledPolicyException::class, 'broken');
-    });
-
-    it('keeps malformed descriptors visible to strict compiled mode', function (): void {
-        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
-            ConfigKey::COMPILED_POLICIES => [
-                'broken' => 'not-a-descriptor',
-            ],
-            ConfigKey::COMPILED_POLICIES_STRICT => true,
-        ]));
-
-        expect(fn() => $provider->provideFor('broken'))
-            ->toThrow(InvalidCompiledPolicyException::class, 'broken');
-    });
-
-    it('allows tolerant compiled mode to fall through malformed descriptors', function (): void {
-        $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
-            ConfigKey::COMPILED_POLICIES => [
-                'broken' => 'not-a-descriptor',
-            ],
-        ]));
-
-        expect($provider->provideFor('broken'))->toBeNull();
-    });
-
-    it('rejects invalid inline compiled map configuration eagerly', function (): void {
-        expect(fn() => (new PolicyProviderFactory())(policyProviderContainerValue([
-            ConfigKey::COMPILED_POLICIES => 'invalid',
-        ])))->toThrow(InvalidArgumentException::class, ConfigKey::COMPILED_POLICIES);
-    });
-
     it('rejects invalid custom provider configuration eagerly', function (): void {
-        expect(fn() => (new PolicyProviderFactory())(policyProviderContainerValue([
+        expect(fn () => (new PolicyProviderFactory())(policyProviderContainerValue([
             ConfigKey::PROVIDERS => [stdClass::class],
         ])))->toThrow(InvalidArgumentException::class, 'PolicyProviderInterface');
     });
@@ -118,11 +42,11 @@ describe('PolicyProviderFactory', function () {
     it('validates configured policy factory results', function (): void {
         $provider = (new PolicyProviderFactory())(policyProviderContainerValue([
             ConfigKey::POLICIES => [
-                'broken' => static fn() => new stdClass(),
+                'broken' => static fn () => new stdClass(),
             ],
         ]));
 
-        expect(fn() => $provider->provideFor('broken'))
+        expect(fn () => $provider->provideFor('broken'))
             ->toThrow(InvalidArgumentException::class, 'must return');
     });
 });
