@@ -99,13 +99,6 @@ it('resolves a OneOf composite with OR semantics over its nested policies', func
         ->and($policy->enforce($guest, new Context()))->not->toBeTrue();
 });
 
-it('caches the resolved policy so subsequent calls return the same instance', function () {
-    $first = $this->provider->provideFor(WithSinglePolicy::class . '::method');
-    $second = $this->provider->provideFor(WithSinglePolicy::class . '::method');
-
-    expect($first)->toBe($second);
-});
-
 describe('class-hierarchy attribute discovery', function () {
     it('inherits a class-level policy from a parent class when the child declares none', function () {
         $policy = $this->provider->provideFor(ChildInheritingBasePolicy::class);

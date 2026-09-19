@@ -160,10 +160,11 @@ $policy = new PermissionPolicy(PostPermission::CREATE);
 - `AttributePolicyProvider` — политики из PHP-атрибутов;
 - `CompositePolicyProvider` — первый найденный вариант;
 - `AllOfPolicyProvider` — объединяет политики из нескольких источников через `AllOf`;
-- `OneOfPolicyProvider` — объединяет найденные политики через `OneOf`;
-- `CompiledPolicyProvider` — читает дескрипторы, созданные `componenta/policy-app`.
+- `OneOfPolicyProvider` — объединяет найденные политики через `OneOf`.
 
-Стандартный `PolicyProviderFactory` собирает configured map, пользовательские провайдеры, compiled descriptors и fallback на атрибуты. Фабрики, которым одновременно нужны сервисы и конфигурация, получают `Componenta\Config\ContainerValue`: сервисы извлекаются типизированно, а конфигурация берётся из его `Config`, а не из нетипизированного service id `config`.
+Стандартный `PolicyProviderFactory` последовательно объединяет настроенную карту политик, пользовательские провайдеры и нативные атрибуты. Каждый вызов `provideFor()` заново создаёт атрибутные политики через нативный механизм PHP и текущую DI-фабрику. Фабрики из карты также вызываются при каждом разрешении. Явно зарегистрированные объекты политик сохраняют заданное приложением время жизни. Ошибки конструкторов и фабрик распространяются при том вызове, где они возникли. Фабрики, которым нужна конфигурация, получают `Componenta\Config\ContainerValue`.
+
+Дисковая компиляция политик удалена. Удалите настройки `compiled_policies`, `compiled_policies_file`, `compiled_policies_strict` и зависимость `componenta/policy-app`. Регистрируйте ConfigProvider этого пакета напрямую. Старые артефакты не используются; билдер приложения для policy не требуется.
 
 Классы пользовательских policy providers и shape configured policy map валидируются до использования. Ленивая фабрика configured policy обязана вернуть `PolicyInterface`.
 
@@ -211,16 +212,12 @@ return [
 - `ConfigKey::POLICY`;
 - `ConfigKey::POLICIES`;
 - `ConfigKey::PROVIDERS`;
-- `ConfigKey::MISSING_POLICY_BEHAVIOR`;
-- `ConfigKey::COMPILED_POLICIES`;
-- `ConfigKey::COMPILED_POLICIES_FILE`;
-- `ConfigKey::COMPILED_POLICIES_STRICT`.
+- `ConfigKey::MISSING_POLICY_BEHAVIOR`.
 
 ## Границы интеграции
 
 `componenta/policy` отвечает только за семантику авторизации. Получение и транспорт актора принадлежат интеграционным пакетам:
 
-- `componenta/policy-app` обнаруживает и компилирует политики из атрибутов;
 - `componenta/cqrs-policy` связывает actor semantics команд/запросов с policy checks;
 - `componenta/di` может внедрять текущего пользователя и создавать политики;
 - `componenta/identity` предоставляет UUID identity contracts.

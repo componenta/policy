@@ -38,19 +38,33 @@ it('resolves a callable factory with the container and returns the produced poli
         ->and($seen)->toBe($container);
 });
 
-it('caches a factory-resolved policy so subsequent calls reuse the same instance', function () {
-    $invocations = 0;
-    $factory = function () use (&$invocations): PolicyInterface {
-        $invocations++;
-
-        return RecordingPolicy::allow();
-    };
-
+it('evaluates the current factory result for every policy resolution', function () {
+    $current = RecordingPolicy::allow();
+    $factory = function () use (&$current): PolicyInterface { return $current; };
     $provider = new ArrayPolicyProvider(new FakeContainer(), ['x' => $factory]);
+    $actor = new \stdClass();
+    $context = new \Componenta\Policy\Context\Context();
 
-    $first = $provider->provideFor('x');
-    $second = $provider->provideFor('x');
+    expect($provider->provideFor('x')->enforce($actor, $context))->toBeTrue();
+    $current = RecordingPolicy::deny('Access changed');
+    expect($provider->provideFor('x')->enforce($actor, $context))
+        ->toEqual(new \Componenta\Policy\Exception\DenyReason('Access changed', RecordingPolicy::class));
+});
 
-    expect($first)->toBe($second)
-        ->and($invocations)->toBe(1);
+it('propagates a factory failure after an earlier successful resolution', function () {
+    $failure = new RuntimeException('Policy dependencies are unavailable.');
+    $resolved = false;
+    $provider = new ArrayPolicyProvider(new FakeContainer(), ['x' => function () use (&$resolved, $failure): PolicyInterface {
+        if ($resolved) { throw $failure; }
+        $resolved = true;
+        return RecordingPolicy::allow();
+    }]);
+    expect($provider->provideFor('x')->enforce(new stdClass(), new \Componenta\Policy\Context\Context()))->toBeTrue();
+
+    try {
+        $provider->provideFor('x');
+        $this->fail('The current factory failure must propagate.');
+    } catch (RuntimeException $error) {
+        expect($error)->toBe($failure);
+    }
 });

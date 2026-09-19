@@ -10,14 +10,11 @@ use Psr\Container\ContainerInterface;
 
 /**
  * Action-to-policy map. Each value is either a {@see PolicyInterface} instance
- * or a callable `fn(ContainerInterface): PolicyInterface`; callables are
- * resolved lazily on first access and cached per action id.
+ * or a callable `fn(ContainerInterface): PolicyInterface` evaluated on each
+ * resolution. Object registrations retain their explicitly selected lifetime.
  */
 final class ArrayPolicyProvider implements PolicyProviderInterface
 {
-    /** @var array<string, PolicyInterface> */
-    private array $resolved = [];
-
     /**
      * @param array<string, PolicyInterface|callable(ContainerInterface): PolicyInterface> $policies
      */
@@ -28,10 +25,6 @@ final class ArrayPolicyProvider implements PolicyProviderInterface
 
     public function provideFor(string $actionId): ?PolicyInterface
     {
-        if (isset($this->resolved[$actionId])) {
-            return $this->resolved[$actionId];
-        }
-
         if (!isset($this->policies[$actionId])) {
             return null;
         }
@@ -39,9 +32,9 @@ final class ArrayPolicyProvider implements PolicyProviderInterface
         $policy = $this->policies[$actionId];
 
         if ($policy instanceof PolicyInterface) {
-            return $this->resolved[$actionId] = $policy;
+            return $policy;
         }
 
-        return $this->resolved[$actionId] = $policy($this->container);
+        return $policy($this->container);
     }
 }

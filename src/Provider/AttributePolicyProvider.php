@@ -30,27 +30,15 @@ use UnexpectedValueException;
  * - {@see Policy} and its subclasses (resolved via {@see FactoryInterface} for DI);
  * - {@see AllOf} / {@see OneOf} composites wrapping the above.
  *
- * Results are cached per `actionId` for the lifetime of the provider.
+ * Attribute instances and factory-backed policies are created on each resolution.
  */
 final class AttributePolicyProvider implements PolicyProviderInterface
 {
-    /** @var array<string, PolicyInterface|null> */
-    private array $cache = [];
-
     public function __construct(
         private readonly FactoryInterface $factory,
     ) {}
 
     public function provideFor(string $actionId): ?PolicyInterface
-    {
-        if (array_key_exists($actionId, $this->cache)) {
-            return $this->cache[$actionId];
-        }
-
-        return $this->cache[$actionId] = $this->discoverPolicy($actionId);
-    }
-
-    private function discoverPolicy(string $actionId): ?PolicyInterface
     {
         if (str_contains($actionId, '::')) {
             return $this->discoverFromMethod($actionId);

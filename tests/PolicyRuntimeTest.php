@@ -18,6 +18,7 @@ final class RuntimeNormalizedPolicy implements PolicyInterface
 {
     public static int $constructions = 0;
     private readonly int $value;
+    private int $checks = 0;
     public function __construct(int $value)
     {
         ++self::$constructions;
@@ -25,14 +26,17 @@ final class RuntimeNormalizedPolicy implements PolicyInterface
     }
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
     {
-        return $this->value === 4 ? true : new DenyReason('Unexpected normalized value', self::class);
+        return $this->value === 4 && ++$this->checks === 1 ? true : new DenyReason('Policy instance was reused', self::class);
     }
 }
 
 #[RuntimeNormalizedPolicy(2)]
 final class RuntimeProtectedAction {}
 
-it('uses native attributes and caches the resolved policy in every environment without loading legacy files', function (string $mode): void {
+#[\Componenta\Policy\Attribute\Policy(RuntimeNormalizedPolicy::class, ['value' => 2])]
+final class RuntimeFactoryProtectedAction {}
+
+it('creates attribute policies for each resolution in every environment without loading legacy files', function (string $mode, string $action): void {
     $file = tempnam(sys_get_temp_dir(), 'policy-legacy-');
     file_put_contents($file, '<?php throw new \\RuntimeException("Legacy policy cache must not execute");');
     try {
@@ -40,11 +44,11 @@ it('uses native attributes and caches the resolved policy in every environment w
         $composition = (new ConfigFactory())->create(new Environment(['APP_ENV' => $mode]), new ConfigProvider(),
             static fn (): array => [ConfigKey::POLICY => ['compiled_policies_file' => $file]]);
         $provider = (new ContainerFactory())->create($composition->config, $composition->dependencies)->get(PolicyProviderInterface::class);
-        $first = $provider->provideFor(RuntimeProtectedAction::class);
+        $first = $provider->provideFor($action);
         expect($first?->enforce(new \stdClass(), new Context()))->toBeTrue()
-            ->and($provider->provideFor(RuntimeProtectedAction::class))->toBe($first)
-            ->and(RuntimeNormalizedPolicy::$constructions)->toBe(1);
+            ->and($provider->provideFor($action)?->enforce(new \stdClass(), new Context()))->toBeTrue()
+            ->and(RuntimeNormalizedPolicy::$constructions)->toBe(2);
     } finally {
         unlink($file);
     }
-})->with(['development', 'production']);
+})->with(['development', 'production'])->with([RuntimeProtectedAction::class, RuntimeFactoryProtectedAction::class]);
