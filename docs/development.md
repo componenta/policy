@@ -12,7 +12,7 @@ Each source dependency below is on `fix/callback-dependency-baseline-2026-11-26`
 
 | Package | Declared source line | Revision |
 |---|---|---|
-| `componenta/di` | `6.0.x-dev` | [`ded9a6dc44db`](https://github.com/componenta/di/commit/ded9a6dc44db2775c4753e73d9581d70caac6043) |
+| `componenta/di` | `6.0.x-dev` | [`e4f19ab9a9f6`](https://github.com/componenta/di/commit/e4f19ab9a9f6bd18da85fc52c8d478433a32baec) |
 | `componenta/identity` | `1.1.x-dev` | [`3feb94e0d649`](https://github.com/componenta/identity/commit/3feb94e0d64956ecdf7b22abed4a8bd9f597abeb) |
 
 The machine-readable inventory is [development-dependencies.json](../.github/development-dependencies.json). CI checks out those revisions, restores their actual branch names so Composer can discover their development versions, and generates a separate Composer root. The tracked package manifest remains unchanged by this process.
@@ -24,7 +24,7 @@ From a fresh package checkout with PHP 8.5.13+ and Composer 2:
 ```bash
 mkdir -p .development-dependencies
 git clone --branch fix/callback-dependency-baseline-2026-11-26 https://github.com/componenta/di.git .development-dependencies/di
-git -C .development-dependencies/di switch -C fix/callback-dependency-baseline-2026-11-26 ded9a6dc44db2775c4753e73d9581d70caac6043
+git -C .development-dependencies/di switch -C fix/callback-dependency-baseline-2026-11-26 e4f19ab9a9f6bd18da85fc52c8d478433a32baec
 git clone --branch fix/callback-dependency-baseline-2026-11-26 https://github.com/componenta/identity.git .development-dependencies/identity
 git -C .development-dependencies/identity switch -C fix/callback-dependency-baseline-2026-11-26 3feb94e0d64956ecdf7b22abed4a8bd9f597abeb
 php .github/scripts/prepare-development.php

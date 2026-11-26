@@ -6,7 +6,7 @@ runs:
     - uses: actions/checkout@v7
       with:
         repository: componenta/di
-        ref: ded9a6dc44db2775c4753e73d9581d70caac6043
+        ref: e4f19ab9a9f6bd18da85fc52c8d478433a32baec
         path: .development-dependencies/di
         persist-credentials: false
     - uses: actions/checkout@v7

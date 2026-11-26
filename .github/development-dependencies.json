@@ -2,7 +2,7 @@
     "di": {
         "branch": "fix/callback-dependency-baseline-2026-11-26",
         "alias": "6.0.x-dev",
-        "commit": "ded9a6dc44db2775c4753e73d9581d70caac6043"
+        "commit": "e4f19ab9a9f6bd18da85fc52c8d478433a32baec"
     },
     "identity": {
         "branch": "fix/callback-dependency-baseline-2026-11-26",
