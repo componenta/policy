@@ -12,6 +12,8 @@ use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\PolicyInterface;
 use Componenta\Policy\PolicyProviderInterface;
+use Componenta\Policy\PolicyEnforcer;
+use Componenta\Policy\Policies\CallbackPolicy;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
 final class RuntimeNormalizedPolicy implements PolicyInterface
@@ -52,3 +54,22 @@ it('creates attribute policies for each resolution in every environment without 
         unlink($file);
     }
 })->with(['development', 'production'])->with([RuntimeProtectedAction::class, RuntimeFactoryProtectedAction::class]);
+
+#[CallbackPolicy(static function (object $actor, ContextInterface $context): true|DenyReason {
+    return $context->getAttribute('expectedActor') === $actor
+        ? true
+        : new DenyReason('The actor does not match this evaluation.');
+})]
+final class RuntimeCallbackProtectedAction {}
+
+it('evaluates native callbacks for current actors and contexts through the configured runtime', function (string $mode): void {
+    $composition = (new ConfigFactory())->create(new Environment(['APP_ENV' => $mode]), new ConfigProvider());
+    $enforcer = (new ContainerFactory())->create($composition->config, $composition->dependencies)->get(PolicyEnforcer::class);
+    $first = new \stdClass();
+    $second = new \stdClass();
+
+    expect($enforcer->can(RuntimeCallbackProtectedAction::class, $first, ['expectedActor' => $first]))->toBeTrue()
+        ->and($enforcer->can(RuntimeCallbackProtectedAction::class, $second, ['expectedActor' => $first]))->toBeFalse()
+        ->and($enforcer->can(RuntimeCallbackProtectedAction::class, $second, ['expectedActor' => $second]))->toBeTrue()
+        ->and($enforcer->can(RuntimeCallbackProtectedAction::class, $first, ['expectedActor' => $second]))->toBeFalse();
+})->with(['development', 'production']);

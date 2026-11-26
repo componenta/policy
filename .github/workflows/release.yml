@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        php: ['8.4', '8.5']
+        php: ['8.5.13', '8.5']
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -27,6 +27,8 @@ jobs:
       - name: Configure Composer authentication
         run: composer config --global github-oauth.github.com "${{ github.token }}"
       - run: composer validate --strict
+      - name: Prepare compatible development dependencies
+        uses: ./.github/actions/development-dependencies
       - name: Resolve Composer cache directory
         id: composer-cache
         shell: bash
@@ -44,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if composer install --no-interaction --prefer-source --no-progress; then
+            if COMPOSER=.composer-development.json composer install --no-interaction --prefer-source --no-progress; then
               exit 0
             fi
 
@@ -63,17 +65,19 @@ jobs:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5.13'
           coverage: none
           tools: composer:v2
       - name: Configure Composer authentication
         run: composer config --global github-oauth.github.com "${{ github.token }}"
       - run: composer validate --strict
+      - name: Prepare compatible development dependencies
+        uses: ./.github/actions/development-dependencies
       - name: Install lowest satisfiable dependency set
         shell: bash
         env:
           COMPOSER_MAX_PARALLEL_HTTP: 1
-        run: composer update --prefer-lowest --prefer-stable --with-all-dependencies --no-interaction --prefer-dist --no-progress
+        run: COMPOSER=.composer-development.json composer update --prefer-lowest --prefer-stable --with-all-dependencies --no-interaction --prefer-dist --no-progress
       - run: composer test
       - run: composer analyse
 

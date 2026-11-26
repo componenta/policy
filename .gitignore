@@ -5,3 +5,7 @@
 vendor/
 .phpunit.cache/
 integration/composer.lock
+/composer.lock
+/.composer-development.json
+/.composer-development.lock
+/.development-dependencies/

@@ -10,7 +10,7 @@
 composer require componenta/policy
 ```
 
-The package targets PHP 8.4+ and integrates with `componenta/config`, `componenta/di`, `componenta/identity`, and PSR-11 containers.
+The package requires PHP 8.5.13+ and integrates with Componenta Config 4, DI 6, Identity 1.1, and PSR-11 containers. For the development branch and its unreleased dependency revisions, see [development integration](docs/development.md).
 
 ## Core model
 
@@ -98,6 +98,7 @@ Missing policies follow `MissingPolicyBehavior`. The default is `DENY`. A call m
 |---|---|
 | `Allow` | Always allows. |
 | `Deny` | Always denies. |
+| `CallbackPolicy` | Evaluates a closure against the current actor and context. |
 | `PermissionPolicy` | Requires all or any configured permissions. |
 | `RolePolicy` | Requires one of the configured role names. |
 | `OwnerPolicy` | Requires an `IdentityInterface` actor to own the context resource. |
@@ -181,6 +182,33 @@ final class PostController {}
 When a policy needs DI services, use `Componenta\Policy\Attribute\Policy` and let `AttributePolicyProvider` create it through `Componenta\DI\FactoryInterface`.
 
 `Componenta\Policy\Attribute\AllOf` and `Componenta\Policy\Attribute\OneOf` compose direct policies and policy references.
+
+### Callback policies
+
+Use `CallbackPolicy` for a small rule over the actor and context already available to the authorization layer:
+
+```php
+use Componenta\Policy\Context\ContextInterface;
+use Componenta\Policy\Exception\DenyReason;
+use Componenta\Policy\Policies\CallbackPolicy;
+use Componenta\Policy\Policies\RolePolicy;
+
+#[RolePolicy('editor')]
+#[CallbackPolicy(static function (object $actor, ContextInterface $context): true|DenyReason {
+    return $context->getAttribute('editingClosed', false) === true
+        ? new DenyReason('Editing is closed.')
+        : true;
+})]
+final class EditPost {}
+```
+
+A named callback can use native first-class callable syntax, including a private static method in the declaring class: `#[CallbackPolicy(self::decide(...))]`. PHP 8.5.13+ is required for correct class scope and visibility when a shared trait declares such a callable. In native attribute arguments, use `static function (...) { ... }` or a first-class callable; arrow functions and captured variables are not valid constant-expression closures.
+
+The callback receives exactly `(object $actor, ContextInterface $context)` each time the policy is enforced. An actor-specific callback parameter is supported and inferred by static analysis; a mismatched actor produces a native `TypeError`, wrapped as a callback policy failure. Its result must be `true` or a `DenyReason`; a returned reason is preserved unchanged. `false`, `null`, and other values are contract errors. There is no implicit container argument or service injection. Use a policy class through `#[Policy(...)]` when the rule needs constructed dependencies.
+
+`CallbackPolicyException` reports an invalid return or a foreign callback exception. Foreign exceptions, including native signature errors, remain available through `getPrevious()`. Existing exceptions implementing `PolicyExceptionInterface` propagate unchanged. `can()` does not hide evaluation failures, and `OneOf` does not turn them into an ordinary denial.
+
+Construction stores the closure without running it. Neither decisions nor actor/context inputs are memoized. Repeated attributes retain the provider's existing AND semantics; `AllOf` and `OneOf` keep their usual short-circuit behavior. Runtime-created closures retain their normal PHP lifetime and any application-owned captured state.
 
 ## Action ids
 

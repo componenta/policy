@@ -1,0 +1,23 @@
+name: Development dependency revisions
+description: Check out the actual latest compatible Componenta development sources
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v7
+      with:
+        repository: componenta/di
+        ref: ded9a6dc44db2775c4753e73d9581d70caac6043
+        path: .development-dependencies/di
+        persist-credentials: false
+    - uses: actions/checkout@v7
+      with:
+        repository: componenta/identity
+        ref: 3feb94e0d64956ecdf7b22abed4a8bd9f597abeb
+        path: .development-dependencies/identity
+        persist-credentials: false
+    - name: Restore source branch identities and prepare Composer
+      shell: bash
+      run: |
+        git -C .development-dependencies/di switch -C fix/callback-dependency-baseline-2026-11-26
+        git -C .development-dependencies/identity switch -C fix/callback-dependency-baseline-2026-11-26
+        php .github/scripts/prepare-development.php

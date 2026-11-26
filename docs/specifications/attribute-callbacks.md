@@ -1,6 +1,6 @@
 # Callback policies in native PHP attributes
 
-**Readiness:** blocked by B1, review of the referenced conversation and its material decisions. This is a repository-grounded design draft, not an executable implementation instruction. The proposed target below must be reconciled with that conversation before production slices are derived.
+**Status:** normative contract for the native attribute callback implementation on PHP 8.5.13+ and the current Componenta dependency lines.
 
 ## Objective
 
@@ -10,13 +10,13 @@ Allow a small authorization rule to be declared as a native PHP attribute or a d
 
 Add one callback-backed policy that is also a native attribute. Support standalone construction, method and class discovery, repeated attributes, and composition with existing policies. Document PHP 8.5 attribute expressions and test through public policy and provider/enforcer APIs.
 
-This change does not migrate the package to DI 6, change the actor model, add a service locator, inject trailing callback arguments, add asynchronous rules, or replace named policies with service dependencies. It does not introduce policy/result compilation or authorization-result caching.
+The package is integrated with DI 6 and Config 4. This change does not change the actor model, add a service locator, inject trailing callback arguments, add asynchronous rules, or replace named policies with service dependencies. It does not introduce policy/result compilation or authorization-result caching.
 
 ## Governing evidence
 
 The inspected baseline is `componenta/policy` `main` at `dd21e6ea5d0a0e51b79999f5c299785455909065`. The only other discovered branch is the older `v2`. No `AGENTS.md`, package specification, or `docs/` specification directory was present in the inspected tree.
 
-Relevant current sources:
+Relevant baseline sources:
 
 - [PolicyInterface](https://github.com/componenta/policy/blob/dd21e6ea5d0a0e51b79999f5c299785455909065/src/PolicyInterface.php) defines `enforce(object, ContextInterface): true|DenyReason` and policy-layer failures.
 - [PolicyEnforcer](https://github.com/componenta/policy/blob/dd21e6ea5d0a0e51b79999f5c299785455909065/src/PolicyEnforcer.php) maps denial to `AccessDenied`, `AccessDeniedException`, or `false` according to `check()`, `enforce()`, or `can()`; evaluation failures propagate.
@@ -29,7 +29,7 @@ PHP 8.5 allows static anonymous functions and first-class callables in attribute
 
 Syntax availability is distinct from the supported native first-class callable attribute contract. That contract requires PHP 8.5.13+ because earlier PHP 8.5 releases could resolve a static callable in a trait constant expression against the first using class and bypass visibility checks. The [PHP 8.5.13 changelog](https://www.php.net/ChangeLog-8.php#8.5.13) records the native fix. The package must not emulate or patch this engine behavior.
 
-Repository source inspection establishes the baseline; no production implementation or test execution was performed for this specification-only work.
+Repository source inspection establishes the pre-change baseline.
 
 ## Requirements and preservation constraints
 
@@ -51,11 +51,12 @@ It depends on `Closure`, `PolicyInterface`, `ContextInterface`, `DenyReason`, an
 
 One new concrete `CallbackPolicyException` under the existing policy exception hierarchy represents callback contract or execution failures. A callback interface, registry, compiler, callback resolver, and additional provider are unnecessary.
 
-### Proposed public contract
+### Public contract
 
 ```php
 namespace Componenta\Policy\Policies;
 
+/** @template TActor of object */
 #[\Attribute(
     \Attribute::TARGET_CLASS
     | \Attribute::TARGET_METHOD
@@ -64,11 +65,12 @@ namespace Componenta\Policy\Policies;
 final readonly class CallbackPolicy implements \Componenta\Policy\PolicyInterface
 {
     /**
-     * @param \Closure(object, \Componenta\Policy\Context\ContextInterface):
+     * @param \Closure(TActor, \Componenta\Policy\Context\ContextInterface):
      *     (true|\Componenta\Policy\Exception\DenyReason) $callback
      */
     public function __construct(\Closure $callback);
 
+    /** @param TActor $actor */
     public function enforce(
         object $actor,
         \Componenta\Policy\Context\ContextInterface $context,
@@ -92,7 +94,7 @@ This is a contract sketch, not executable class code. The callback is stored pri
 8. Any other `Throwable` raised during callback invocation is wrapped once in `CallbackPolicyException`, preserving it as `previous`. Its message identifies policy callback execution failure without rendering actor/context values.
 9. Invalid constructor arguments and native attribute-construction errors retain native construction-failure behavior; they are not interpreted as authorization decisions.
 
-The callback must validate any actor capabilities and required context data it relies on. Existing `InvalidPolicyActorException`, `MissingPolicyContextAttributeException`, and `InvalidPolicyContextAttributeException` remain the appropriate domain-specific errors. A missing or invalid required input cannot be converted to denial merely to avoid raising an exception.
+The actor parameter may use a concrete actor type. `CallbackPolicy<TActor>` carries that type through constructor and direct-enforcement PHPDoc; the native `PolicyInterface` method remains `enforce(object, ContextInterface)`. A real typed first-class-callable consumer must pass PHPStan without suppressions. An incompatible actor supplied through the runtime interface produces a native `TypeError` and follows the specified wrapping rule. The callback must validate any additional actor capabilities and required context data it relies on. Existing `InvalidPolicyActorException`, `MissingPolicyContextAttributeException`, and `InvalidPolicyContextAttributeException` remain the appropriate domain-specific errors. A missing or invalid required input cannot be converted to denial merely to avoid raising an exception.
 
 There is no callback cloning or PHP closure-lifetime emulation. Directly supplied runtime closures retain PHP's native scope and state behavior. The package invokes the current callback on every evaluation and does not cache its result.
 
@@ -104,9 +106,9 @@ Repeated callback attributes participate in the existing AND composition. A call
 
 Callback policies can also be supplied to `Policies\AllOf` and `Policies\OneOf` or wrapped in `Attribute\AllOf`/`Attribute\OneOf`. Existing DI-based named policy references continue serving dependency-bearing rules.
 
-### Proposed usage
+### Usage
 
-The following example illustrates the new API after implementation. All inline attribute callbacks use PHP 8.5-compatible static anonymous functions.
+The following example illustrates the callback API. All inline attribute callbacks use PHP 8.5-compatible static anonymous functions.
 
 ```php
 use Componenta\Policy\Context\ContextInterface;
@@ -140,9 +142,11 @@ An equivalent declaration can use `#[CallbackPolicy(self::decide(...))]` inside 
 
 ## Compatibility and runtime
 
-This proposed capability is additive: no current `PolicyInterface`, provider, enforcer, composition, or named policy API is removed or widened. Existing DI dependencies are not changed solely to support a directly invoked closure.
+The release target is Policy 4.x. Both `dev-main` and `dev-spec/attribute-callbacks-2026-11-26` use `4.0.x-dev`; the stricter PHP and dependency baseline must not be published as another release of the existing 3.x line.
 
-Inline callback and first-class callable attribute syntax became available in PHP 8.5, while the supported native first-class callable attribute contract in this draft requires PHP 8.5.13+. The reviewed package currently advertises PHP `^8.4`; B1 must settle whether this feature changes the package-wide minimum or retains PHP 8.4 for the existing/runtime-construction API with separately gated PHP 8.5.13+ native-attribute coverage. Do not silently choose that release-policy change during implementation. Composer constraints, CI, examples, and fixture loading must distinguish the retained package/runtime-construction surface, if any, from the supported native attribute runtime; PHP 8.5.0–8.5.12 must not be advertised as satisfying the full native callable scope/visibility contract.
+This capability is additive: no current `PolicyInterface`, provider, enforcer, composition, or named policy API is removed or widened. The independently required dependency migration targets DI 6, Config 4, Identity 1.1 and Arrayable 1; callback invocation itself remains independent of DI.
+
+The package requires PHP `^8.5.13` throughout Composer, CI, native attribute fixtures, and documentation. PHP 8.5 introduced the syntax; PHP 8.5.13 supplies the required trait first-class callable scope/visibility fix. PHP 8.4 support is removed rather than maintaining a separate fixture or runtime-construction compatibility path. The dependency graph uses current Componenta major lines and real compatible source branches when a latest library has not been released; no version replacement or obsolete-major alias is permitted.
 
 No persisted policy result or compiled metadata migration is introduced. The existing native per-resolution policy construction remains authoritative.
 
@@ -167,26 +171,31 @@ After focused tests pass, use the existing `composer test` and `composer analyse
 
 ## Technical change surface
 
-Proposed new symbols have intentionally specified locations within verified existing namespaces:
+New symbols have intentionally specified locations within verified existing namespaces:
 
 - Add `src/Policies/CallbackPolicy.php` — the callback adapter and native attribute.
 - Add `src/Exception/CallbackPolicyException.php` — policy-layer callback execution/result failure.
-- Add focused callback-policy tests and fixtures within the current `tests/Policies` and `tests/Fixture/AttributeTargets` structures.
-- Extend `tests/Provider/AttributePolicyProviderTest.php`, applicable enforcer/composite tests, and `tests/PolicyRuntimeTest.php` only for the stated public behaviors.
-- Update `README.md` and `README.ru.md` with equivalent API and error/lifecycle semantics; update runtime metadata and CI only according to the settled B1 decision.
+- Add a typed actor callback consumer in `tests/StaticAnalysis/TypedCallbackPolicy.php` to the existing PHPStan gate.
+- Add direct-adapter tests in `tests/Policies/CallbackPolicyTest.php` and native discovery/trait fixtures in `tests/Provider/CallbackPolicyProviderTest.php`.
+- Extend `tests/PolicyRuntimeTest.php` for callback evaluation through the configured DI 6/Config 4 runtime in development and production; retain existing enforcer/composite tests as preservation controls.
+- Update `README.md` and `README.ru.md` with equivalent API and error/lifecycle semantics; update runtime metadata and CI for PHP 8.5.13+, Config 4 and DI 6.
 
-No production change is expected in `PolicyInterface`, `PolicyEnforcer`, `AttributePolicyProvider`, `AllOf`, `OneOf`, their factories, or config registration. If implementation reveals such a change is required, first explain the missing boundary in this specification rather than adding another callback path.
+No callback-specific production change is expected in `PolicyInterface`, `PolicyEnforcer`, `AttributePolicyProvider`, `AllOf`, `OneOf`, their factories, or config registration. Dependency integration may adapt those factories or their tests only where the latest contracts require it. If implementation reveals such a change is required, first explain the missing boundary in this specification rather than adding another callback path.
 
-## Blocking evidence and implementation sequencing
+## Implementation plan
 
-### B1 — Referenced conversation and runtime/API decisions
+### Slice 1 — Direct callback decisions and failures
 
-The required linked design discussion was unavailable during this specification-only review. It may specify callback invocation/DI rules, package compatibility, naming, or readiness constraints that materially alter the proposed target. Its decisions must be reconciled with this document before implementation readiness can be claimed.
+Implement R1, R2 and R4 through the callback adapter and exception. Establish failing public tests for allowed/denied outcomes, invalid results, unchanged policy exceptions and wrapped foreign failures; implement the two new classes; run the focused tests. Done when each observable outcome preserves the existing policy failure taxonomy without DI or result caching.
 
-The bounded evidence task is to retrieve the relevant conversation text or explicit decisions, compare them with this draft, and settle the invocation contract and runtime policy. No production changes or behavioral spike are needed. Stop when each relevant decision has an identified disposition and the specification can state a single target without contradicting the prior request.
+### Slice 2 — Native discovery, composition and request independence
 
-Do not execute production slices while B1 remains. After reconciliation, derive slices in this dependency order: direct callback outcome/error adapter; native attribute/provider/enforcer integration and lifecycle proof; documentation/runtime consistency and final convergence. Each slice must reference the settled contracts above and establish its public failing signal before implementation.
+Implement R3 and prove P1–P3 through existing providers, enforcer and compositions. Establish failing native attribute/trait scope, repeated-actor and short-circuit tests, then make only the changes necessary for those contracts. Done when native and directly constructed callback policies behave equivalently, including repeated resolution and both denial and evaluation-error paths.
+
+### Slice 3 — Latest dependency integration and documentation
+
+Require PHP 8.5.13+, Config 4, DI 6 and the latest Identity/Arrayable lines. Use real compatible dependency branches for unpublished source lines. Adapt integration fixtures to those public APIs, run the public runtime/composition tests and package quality commands, and document the exact dependency setup and callback semantics in both READMEs. Done when the actual graph installs and the full public-contract suite plus static analysis pass on that graph. No compatibility alias may disguise an older major as a newer one.
 
 ## Convergence check
 
-Before declaring a future implementation complete, compare it with R1–R4 and P1–P3. Reject drift that adds bool-denial shorthand, hidden dependency resolution, swallowed errors, callback/result caching, a second policy pipeline, or changed policy composition. Confirm all examples parse on the stated minimum version and no unsupported arrow function is used in an attribute argument.
+Before declaring the implementation complete, compare it with R1–R4 and P1–P3. Reject drift that adds bool-denial shorthand, hidden dependency resolution, swallowed errors, callback/result caching, a second policy pipeline, or changed policy composition. Confirm all examples parse on the stated minimum version and no unsupported arrow function is used in an attribute argument.

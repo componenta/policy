@@ -10,7 +10,7 @@
 composer require componenta/policy
 ```
 
-Пакет рассчитан на PHP 8.4+ и интегрируется с `componenta/config`, `componenta/di`, `componenta/identity` и PSR-11 контейнерами.
+Пакет требует PHP 8.5.13+ и интегрируется с Componenta Config 4, DI 6, Identity 1.1 и PSR-11 контейнерами. Установка ветки разработки с ещё не выпущенными зависимостями описана в [инструкции по интеграции](docs/development.md).
 
 ## Базовая модель
 
@@ -98,6 +98,7 @@ $enforcer->enforce('posts.update', $user, [
 |---|---|
 | `Allow` | Всегда разрешает. |
 | `Deny` | Всегда запрещает. |
+| `CallbackPolicy` | Вычисляет правило по текущему актору и контексту. |
 | `PermissionPolicy` | Требует все или любое из заданных разрешений. |
 | `RolePolicy` | Требует одну из разрешённых ролей. |
 | `OwnerPolicy` | Требует, чтобы актор с `IdentityInterface` владел ресурсом из контекста. |
@@ -181,6 +182,33 @@ final class PostController {}
 Если политика требует DI-сервисы, используется `Componenta\Policy\Attribute\Policy`, а `AttributePolicyProvider` создаёт объект через `Componenta\DI\FactoryInterface`.
 
 `Componenta\Policy\Attribute\AllOf` и `Componenta\Policy\Attribute\OneOf` позволяют составлять композиции из прямых политик и ссылок на политики.
+
+### Callback-политики
+
+`CallbackPolicy` подходит для небольшого правила над актором и контекстом, уже доступными слою авторизации:
+
+```php
+use Componenta\Policy\Context\ContextInterface;
+use Componenta\Policy\Exception\DenyReason;
+use Componenta\Policy\Policies\CallbackPolicy;
+use Componenta\Policy\Policies\RolePolicy;
+
+#[RolePolicy('editor')]
+#[CallbackPolicy(static function (object $actor, ContextInterface $context): true|DenyReason {
+    return $context->getAttribute('editingClosed', false) === true
+        ? new DenyReason('Редактирование закрыто.')
+        : true;
+})]
+final class EditPost {}
+```
+
+Для именованной функции доступен нативный first-class callable, в том числе закрытый статический метод объявляющего класса: `#[CallbackPolicy(self::decide(...))]`. PHP 8.5.13+ обеспечивает корректные область класса и видимость, когда такой callable объявлен в общем trait. В аргументах атрибута используйте `static function (...) { ... }` или first-class callable: стрелочные функции и захват внешних переменных в этих константных выражениях недопустимы.
+
+При каждом `enforce()` callback получает ровно `(object $actor, ContextInterface $context)`. Можно указать конкретный тип актора в callback; статический анализ сохраняет этот тип. Несовместимый актор вызывает нативный `TypeError`, обёрнутый в ошибку callback-политики. Допустимы только `true` или `DenyReason`; переданный объект причины сохраняется без изменений. `false`, `null` и другие результаты являются ошибками контракта. Контейнер и сервисы автоматически не передаются. Если правило требует зависимостей, используйте класс политики через `#[Policy(...)]`.
+
+`CallbackPolicyException` обозначает недопустимый результат или стороннее исключение callback. Исходное исключение, включая нативную ошибку сигнатуры, доступно через `getPrevious()`. Исключения, реализующие `PolicyExceptionInterface`, распространяются без изменений. `can()` не скрывает ошибки вычисления, а `OneOf` не превращает их в обычный отказ.
+
+Конструктор сохраняет замыкание без вызова. Решения, актор и контекст не мемоизируются. Повторные атрибуты сохраняют существующую семантику AND; `AllOf` и `OneOf` сохраняют порядок и короткое замыкание. Замыкания, созданные обычным PHP-кодом, сохраняют своё нативное время жизни и захваченное приложением состояние.
 
 ## Action id
 
