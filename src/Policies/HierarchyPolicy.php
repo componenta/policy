@@ -22,8 +22,8 @@ use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
  * The target must be supplied in the context under {@see self::ATTR_TARGET}
  * and expose a role or role collection. For role-aware actors and targets
  * exposing both capabilities, both sources participate in the comparison.
- * {@see Guest} is a valid anonymous
- * actor and is denied normally; other actors without a supported role
+ * {@see Guest} is a valid anonymous actor and is denied normally;
+ * other actors without a supported role
  * capability are treated as a policy integration error.
  */
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
@@ -41,7 +41,7 @@ final class HierarchyPolicy extends AbstractPolicy
         }
 
         $target = $context->getAttribute(self::ATTR_TARGET);
-        $targetRoles = self::extractRoles($target);
+        $targetRoles = self::extractRoleSources($target);
 
         if ($targetRoles === null) {
             throw InvalidPolicyContextAttributeException::expected(
@@ -55,7 +55,7 @@ final class HierarchyPolicy extends AbstractPolicy
             return $this->deny('Guest actor has no role hierarchy');
         }
 
-        $actorRoles = self::extractRoles($actor);
+        $actorRoles = self::extractRoleSources($actor);
 
         if ($actorRoles === null) {
             throw InvalidPolicyActorException::expected(
@@ -63,6 +63,9 @@ final class HierarchyPolicy extends AbstractPolicy
                 expectedType: RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class . '|' . RoleInterface::class . '|' . RoleCollectionInterface::class,
             );
         }
+
+        $actorRoles = self::normalizeRoles($actorRoles);
+        $targetRoles = self::normalizeRoles($targetRoles);
 
         if ($actorRoles === []) {
             return $this->deny('Actor has no roles to compare');
@@ -83,11 +86,11 @@ final class HierarchyPolicy extends AbstractPolicy
         ));
     }
 
-    /** @return list<RoleInterface>|null */
-    private static function extractRoles(mixed $subject): ?array
+    /** @return list<RoleInterface|RoleCollectionInterface>|null */
+    private static function extractRoleSources(mixed $subject): ?array
     {
         if ($subject instanceof RoleInterface || $subject instanceof RoleCollectionInterface) {
-            return self::normalizeRoles($subject);
+            return [$subject];
         }
 
         if (!$subject instanceof RoleAwareInterface && !$subject instanceof RoleCollectionAwareInterface) {
@@ -101,25 +104,29 @@ final class HierarchyPolicy extends AbstractPolicy
         }
 
         if ($subject instanceof RoleCollectionAwareInterface) {
-            foreach ($subject->roles as $role) {
-                $roles[] = $role;
-            }
+            $roles[] = $subject->roles;
         }
 
         return $roles;
     }
 
-    /** @return list<RoleInterface> */
-    private static function normalizeRoles(RoleInterface|RoleCollectionInterface $roles): array
+    /**
+     * @param list<RoleInterface|RoleCollectionInterface> $sources
+     * @return list<RoleInterface>
+     */
+    private static function normalizeRoles(array $sources): array
     {
-        if ($roles instanceof RoleInterface) {
-            return [$roles];
-        }
-
         $result = [];
 
-        foreach ($roles as $role) {
-            $result[] = $role;
+        foreach ($sources as $source) {
+            if ($source instanceof RoleInterface) {
+                $result[] = $source;
+                continue;
+            }
+
+            foreach ($source as $role) {
+                $result[] = $role;
+            }
         }
 
         return $result;

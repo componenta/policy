@@ -181,3 +181,26 @@ it('uses the same role sources for an actor and a target', function (): void {
         ->and($policy->enforce($moderator, new Context([HierarchyPolicy::ATTR_TARGET => $subject])))
         ->toBeInstanceOf(DenyReason::class);
 });
+
+it('does not enumerate target roles after recognizing a guest actor', function (): void {
+    $target = new class implements \Componenta\Policy\Actor\RoleCollectionInterface {
+        public function getIterator(): Traversable
+        {
+            throw new LogicException('Guest must not enumerate target roles.');
+        }
+
+        public function count(): int { return 0; }
+        public function toArray(): array { return []; }
+
+        public function contains(
+            \Componenta\Policy\Actor\RoleInterface|\Componenta\Policy\Actor\RoleCollectionInterface|string $role,
+            \Componenta\Policy\ContainsMode $mode = \Componenta\Policy\ContainsMode::ANY,
+        ): bool {
+            return false;
+        }
+    };
+
+    expect((new HierarchyPolicy())->enforce(new Guest(), new Context([
+        HierarchyPolicy::ATTR_TARGET => $target,
+    ])))->toBeInstanceOf(DenyReason::class);
+});
