@@ -36,7 +36,7 @@ composer analyse
 COMPOSER=.composer-development.json composer audit
 ```
 
-To use existing checkouts, pass their parent directory to `php .github/scripts/prepare-development.php /path/to/dependencies`. Check out the listed source branch at the listed revision first. The generator checks package names and declared branch aliases, and never supplies Composer `options.versions` overrides. The generated manifest, lock, dependency clones, and vendor directory are local integration artifacts.
+To use existing checkouts, pass their parent directory to `php .github/scripts/prepare-development.php /path/to/dependencies`. Check out the listed source branch at the listed revision first. The generator checks Git HEAD revisions, checked-out branch names, package names and declared branch aliases, and never supplies Composer `options.versions` overrides. The generated manifest, lock, dependency clones, and vendor directory are local integration artifacts.
 
 The workflow checks PHP 8.5.13 and the current PHP 8.5 patch. Its lowest-dependency job resolves the lowest compatible versions within these current major lines while retaining the required source revisions; it does not substitute an older Componenta major.
 

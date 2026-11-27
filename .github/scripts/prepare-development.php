@@ -15,6 +15,18 @@ foreach ($dependencies as $name => $expected) {
     if ($path === false) {
         throw new RuntimeException('Missing development dependency checkout: ' . $name);
     }
+    $head = [];
+    exec('git -C ' . escapeshellarg($path) . ' rev-parse --verify HEAD', $head, $status);
+    if ($status !== 0 || ($head[0] ?? null) !== $expected['commit']) {
+        throw new RuntimeException('Unexpected Git revision in development dependency checkout: ' . $name);
+    }
+
+    $currentBranch = [];
+    exec('git -C ' . escapeshellarg($path) . ' symbolic-ref --quiet --short HEAD', $currentBranch, $status);
+    if ($status !== 0 || ($currentBranch[0] ?? null) !== $expected['branch']) {
+        throw new RuntimeException('Unexpected Git branch in development dependency checkout: ' . $name);
+    }
+
     $package = json_decode(file_get_contents($path . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
     $branch = 'dev-' . $expected['branch'];
     if (($package['name'] ?? null) !== 'componenta/' . $name
