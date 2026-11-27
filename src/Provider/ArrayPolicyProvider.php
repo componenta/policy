@@ -15,13 +15,27 @@ use Psr\Container\ContainerInterface;
  */
 final class ArrayPolicyProvider implements PolicyProviderInterface
 {
+    /** @var array<string, PolicyInterface|callable(ContainerInterface): PolicyInterface> */
+    private readonly array $policies;
+
     /**
      * @param array<string, PolicyInterface|callable(ContainerInterface): PolicyInterface> $policies
      */
     public function __construct(
         private readonly ContainerInterface $container,
-        private readonly array $policies = [],
-    ) {}
+        array $policies = [],
+    ) {
+        $snapshot = [];
+
+        foreach ($policies as $actionId => $policy) {
+            // Retain policy/factory object identity, but not caller-owned array slots.
+            $snapshot[$actionId] = is_array($policy)
+                ? array_map(static fn ($part) => $part, $policy)
+                : $policy;
+        }
+
+        $this->policies = $snapshot;
+    }
 
     public function provideFor(string $actionId): ?PolicyInterface
     {

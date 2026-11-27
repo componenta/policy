@@ -88,3 +88,34 @@ it('rejects a null registration instead of treating it as a missing action', fun
     expect(fn () => $provider->provideFor('x'))->toThrow(InvalidArgumentException::class);
     expect($provider->provideFor('unknown'))->toBeNull();
 });
+
+it('keeps action registrations independent of caller references', function (): void {
+    $denial = RecordingPolicy::deny();
+    $registration = $denial;
+    $provider = new ArrayPolicyProvider(new FakeContainer(), ['x' => &$registration]);
+
+    $registration = RecordingPolicy::allow();
+
+    expect($provider->provideFor('x'))->toBe($denial);
+});
+
+it('does not allow replacing a registered callable method through a referenced array slot', function (): void {
+    $denial = RecordingPolicy::deny();
+    $factory = new class ($denial) {
+        public function __construct(private PolicyInterface $denial) {}
+        public function deny(ContainerInterface $container): PolicyInterface
+        {
+            return $this->denial;
+        }
+        public function allow(ContainerInterface $container): PolicyInterface
+        {
+            return RecordingPolicy::allow();
+        }
+    };
+    $method = 'deny';
+    $provider = new ArrayPolicyProvider(new FakeContainer(), ['x' => [$factory, &$method]]);
+
+    $method = 'allow';
+
+    expect($provider->provideFor('x'))->toBe($denial);
+});
