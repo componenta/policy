@@ -146,3 +146,38 @@ it('denies when ranks are equal (strict superiority required)', function () {
         new Context([HierarchyPolicy::ATTR_TARGET => $target]),
     ))->toBeInstanceOf(DenyReason::class);
 });
+
+it('considers every role exposed by the target when both role capabilities are present', function (): void {
+    $target = new readonly class (
+        new FakeRole('admin', rank: 10),
+        new RoleCollection([new FakeRole('user', rank: 1)]),
+    ) implements \Componenta\Policy\Actor\RoleAwareInterface, \Componenta\Policy\Actor\RoleCollectionAwareInterface {
+        public function __construct(
+            public \Componenta\Policy\Actor\RoleInterface $role,
+            public \Componenta\Policy\Actor\RoleCollectionInterface $roles,
+        ) {}
+    };
+    $context = new Context([HierarchyPolicy::ATTR_TARGET => $target]);
+    $policy = new HierarchyPolicy();
+
+    expect($policy->enforce(new FakeRole('moderator', rank: 5), $context))->toBeInstanceOf(DenyReason::class)
+        ->and($policy->enforce(new FakeRole('superadmin', rank: 11), $context))->toBeTrue();
+});
+
+it('uses the same role sources for an actor and a target', function (): void {
+    $subject = new readonly class (
+        new FakeRole('user', rank: 1),
+        new RoleCollection([new FakeRole('admin', rank: 10)]),
+    ) implements \Componenta\Policy\Actor\RoleAwareInterface, \Componenta\Policy\Actor\RoleCollectionAwareInterface {
+        public function __construct(
+            public \Componenta\Policy\Actor\RoleInterface $role,
+            public \Componenta\Policy\Actor\RoleCollectionInterface $roles,
+        ) {}
+    };
+    $moderator = new FakeRole('moderator', rank: 5);
+    $policy = new HierarchyPolicy();
+
+    expect($policy->enforce($subject, new Context([HierarchyPolicy::ATTR_TARGET => $moderator])))->toBeTrue()
+        ->and($policy->enforce($moderator, new Context([HierarchyPolicy::ATTR_TARGET => $subject])))
+        ->toBeInstanceOf(DenyReason::class);
+});

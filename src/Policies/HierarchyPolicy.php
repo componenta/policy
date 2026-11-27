@@ -20,7 +20,9 @@ use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
  * target role.
  *
  * The target must be supplied in the context under {@see self::ATTR_TARGET}
- * and expose a role or role collection. {@see Guest} is a valid anonymous
+ * and expose a role or role collection. For role-aware actors and targets
+ * exposing both capabilities, both sources participate in the comparison.
+ * {@see Guest} is a valid anonymous
  * actor and is denied normally; other actors without a supported role
  * capability are treated as a policy integration error.
  */
@@ -39,7 +41,7 @@ final class HierarchyPolicy extends AbstractPolicy
         }
 
         $target = $context->getAttribute(self::ATTR_TARGET);
-        $targetRoles = self::extractTargetRoles($target);
+        $targetRoles = self::extractRoles($target);
 
         if ($targetRoles === null) {
             throw InvalidPolicyContextAttributeException::expected(
@@ -53,7 +55,7 @@ final class HierarchyPolicy extends AbstractPolicy
             return $this->deny('Guest actor has no role hierarchy');
         }
 
-        $actorRoles = $this->extractRole($actor);
+        $actorRoles = self::extractRoles($actor);
 
         if ($actorRoles === null) {
             throw InvalidPolicyActorException::expected(
@@ -62,43 +64,49 @@ final class HierarchyPolicy extends AbstractPolicy
             );
         }
 
-        $actorRoleList = self::normalizeRoles($actorRoles);
-        $targetRoleList = self::normalizeRoles($targetRoles);
-
-        if ($actorRoleList === []) {
+        if ($actorRoles === []) {
             return $this->deny('Actor has no roles to compare');
         }
 
-        if ($targetRoleList === []) {
+        if ($targetRoles === []) {
             return $this->deny('Target has no roles to compare');
         }
 
-        if (self::outranks($actorRoleList, $targetRoleList)) {
+        if (self::outranks($actorRoles, $targetRoles)) {
             return true;
         }
 
         return $this->deny(sprintf(
             'Actor roles "%s" do not outrank target roles "%s"',
-            implode(', ', self::roleNames($actorRoleList)),
-            implode(', ', self::roleNames($targetRoleList)),
+            implode(', ', self::roleNames($actorRoles)),
+            implode(', ', self::roleNames($targetRoles)),
         ));
     }
 
-    private static function extractTargetRoles(mixed $target): RoleInterface|RoleCollectionInterface|null
+    /** @return list<RoleInterface>|null */
+    private static function extractRoles(mixed $subject): ?array
     {
-        if ($target instanceof RoleInterface || $target instanceof RoleCollectionInterface) {
-            return $target;
+        if ($subject instanceof RoleInterface || $subject instanceof RoleCollectionInterface) {
+            return self::normalizeRoles($subject);
         }
 
-        if ($target instanceof RoleCollectionAwareInterface) {
-            return $target->roles;
+        if (!$subject instanceof RoleAwareInterface && !$subject instanceof RoleCollectionAwareInterface) {
+            return null;
         }
 
-        if ($target instanceof RoleAwareInterface) {
-            return $target->role;
+        $roles = [];
+
+        if ($subject instanceof RoleAwareInterface) {
+            $roles[] = $subject->role;
         }
 
-        return null;
+        if ($subject instanceof RoleCollectionAwareInterface) {
+            foreach ($subject->roles as $role) {
+                $roles[] = $role;
+            }
+        }
+
+        return $roles;
     }
 
     /** @return list<RoleInterface> */
