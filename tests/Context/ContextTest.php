@@ -104,3 +104,114 @@ it('preserves resource identity when creating or deriving a context', function (
     expect($context->getAttribute('resource'))->toBe($resource)
         ->and($context->withAttribute('x', 1)->getAttribute('resource'))->toBe($resource);
 });
+
+it('isolates nested references on construction and on every read', function (): void {
+    $allowed = false;
+    $resource = new stdClass();
+    $context = new Context(['metadata' => ['allowed' => &$allowed, 'resource' => $resource]]);
+    $allowed = true;
+
+    expect($context->getAttribute('metadata')['allowed'])->toBeFalse();
+
+    $read = $context->getAttribute('metadata');
+    $read['allowed'] = true;
+    $export = $context->toArray();
+    $export['metadata']['allowed'] = true;
+
+    expect($context->getAttribute('metadata')['allowed'])->toBeFalse()
+        ->and($context->getAttribute('metadata')['resource'])->toBe($resource);
+});
+
+it('isolates nested references when deriving contexts', function (): void {
+    $allowed = false;
+    $base = new Context();
+    $first = $base->withAttribute('metadata', ['allowed' => &$allowed]);
+    $second = $base->withAttributes(['metadata' => ['allowed' => &$allowed]]);
+    $third = $first->withAttribute('extra', true);
+    $allowed = true;
+
+    foreach ([$first, $second, $third, $third->withoutAttribute('extra')] as $context) {
+        $read = $context->getAttribute('metadata');
+        $read['allowed'] = true;
+
+        expect($context->getAttribute('metadata')['allowed'])->toBeFalse();
+    }
+
+    expect($base->hasAttribute('metadata'))->toBeFalse();
+});
+
+it('preserves internal array aliases without exposing the stored reference cells', function (): void {
+    $value = 1;
+    $context = new Context(['metadata' => ['first' => &$value, 'second' => &$value]]);
+    $read = $context->getAttribute('metadata');
+    $read['first'] = 2;
+
+    expect($read['second'])->toBe(2)
+        ->and($context->getAttribute('metadata')['first'])->toBe(1)
+        ->and($context->getAttribute('metadata')['second'])->toBe(1)
+        ->and($value)->toBe(1);
+});
+
+it('preserves recursive arrays without retaining or exposing their reference cells', function (): void {
+    $recursive = ['value' => 1];
+    $recursive['self'] = &$recursive;
+    $context = new Context(['metadata' => $recursive]);
+    $recursive['value'] = 2;
+
+    $read = $context->getAttribute('metadata');
+    $read['self']['value'] = 3;
+
+    expect($read['self']['self']['value'])->toBe(3)
+        ->and($context->getAttribute('metadata')['self']['value'])->toBe(1);
+
+    $export = $context->toArray();
+    $export['metadata']['self']['value'] = 4;
+
+    expect($context->getAttribute('metadata')['self']['value'])->toBe(1);
+});
+
+it('handles mutual recursion whose original reference variables no longer exist', function (): void {
+    $mutual = (static function (): array {
+        $first = ['value' => 1];
+        $second = ['value' => 2];
+        $first['second'] = &$second;
+        $second['first'] = &$first;
+
+        return $first;
+    })();
+    $context = new Context(['metadata' => $mutual]);
+    $read = $context->getAttribute('metadata');
+    $read['second']['first']['value'] = 3;
+
+    expect($read['second']['first']['second']['first']['value'])->toBe(3)
+        ->and($context->getAttribute('metadata')['second']['first']['value'])->toBe(1);
+});
+
+it('handles deeply nested reference-containing arrays without recursive function calls', function (): void {
+    $value = 1;
+    $nested = ['value' => &$value];
+    for ($i = 0; $i < 300; $i++) {
+        $nested = ['nested' => $nested];
+    }
+    $context = new Context(['metadata' => $nested]);
+    $value = 2;
+    $read = $context->getAttribute('metadata');
+    for ($i = 0; $i < 300; $i++) {
+        $read = $read['nested'];
+    }
+
+    expect($read['value'])->toBe(1);
+});
+
+it('keeps ordinary array keys and resource identity', function (): void {
+    $stream = fopen('php://memory', 'w+');
+    try {
+        $flag = false;
+        $context = new Context(['metadata' => [42 => 'answer', 'stream' => $stream, 'flag' => &$flag]]);
+
+        expect($context->getAttribute('metadata')[42])->toBe('answer')
+            ->and($context->getAttribute('metadata')['stream'])->toBe($stream);
+    } finally {
+        fclose($stream);
+    }
+});
