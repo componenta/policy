@@ -55,3 +55,13 @@ it('add() places the new provider at the back of the chain', function () {
 
     expect($composite->provideFor('x'))->toBe($backPolicy);
 });
+
+it('keeps configured provider identities independent of caller references', function (): void {
+    $denial = RecordingPolicy::deny();
+    $registration = new FakeProvider(['x' => $denial]);
+    $provider = new CompositePolicyProvider([&$registration]);
+
+    $registration = new FakeProvider(['x' => RecordingPolicy::allow()]);
+
+    expect($provider->provideFor('x'))->toBe($denial);
+});

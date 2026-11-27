@@ -30,7 +30,13 @@ final class OneOfPolicyProvider implements PolicyProviderInterface
      */
     public function __construct(array $providers = [])
     {
-        $this->providers = $providers;
+        $snapshot = [];
+
+        foreach ($providers as $provider) {
+            $snapshot[] = $provider;
+        }
+
+        $this->providers = $snapshot;
     }
 
     public function provideFor(string $actionId): ?PolicyInterface

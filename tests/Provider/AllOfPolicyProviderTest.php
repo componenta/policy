@@ -91,3 +91,13 @@ it('add() places the provider at the back of the AND evaluation order', function
         ->and($frontPolicy->calls)->toBe(1)
         ->and($backPolicy->calls)->toBe(0);
 });
+
+it('keeps configured provider identities independent of caller references', function (): void {
+    $denial = RecordingPolicy::deny();
+    $registration = new FakeProvider(['x' => $denial]);
+    $provider = new AllOfPolicyProvider([&$registration]);
+
+    $registration = new FakeProvider(['x' => RecordingPolicy::allow()]);
+
+    expect($provider->provideFor('x'))->toBe($denial);
+});
