@@ -15,7 +15,7 @@ use Psr\Container\ContainerInterface;
  */
 final class ArrayPolicyProvider implements PolicyProviderInterface
 {
-    /** @var array<string, PolicyInterface|callable(ContainerInterface): PolicyInterface> */
+    /** @var array<string, mixed> Registrations are validated at resolution time. */
     private readonly array $policies;
 
     /**
@@ -30,7 +30,7 @@ final class ArrayPolicyProvider implements PolicyProviderInterface
         foreach ($policies as $actionId => $policy) {
             // Retain policy/factory object identity, but not caller-owned array slots.
             $snapshot[$actionId] = is_array($policy)
-                ? array_map(static fn ($part) => $part, $policy)
+                ? array_map(static fn (mixed $part): mixed => $part, $policy)
                 : $policy;
         }
 
