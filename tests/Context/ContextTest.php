@@ -215,3 +215,40 @@ it('keeps ordinary array keys and resource identity', function (): void {
         fclose($stream);
     }
 });
+
+it('isolates hidden single-owner reference cells even when array padding makes them visible', function (): void {
+    $metadata = (static function (): array {
+        $value = 1;
+
+        return ['value' => &$value];
+    })();
+    $context = new Context(['metadata' => $metadata]);
+
+    $paddedInput = array_pad($metadata, 2, null);
+    $paddedInput['value'] = 2;
+    expect($context->getAttribute('metadata')['value'])->toBe(1);
+
+    $paddedRead = array_pad($context->getAttribute('metadata'), 2, null);
+    $paddedRead['value'] = 3;
+    expect($context->getAttribute('metadata')['value'])->toBe(1);
+
+    $export = $context->toArray();
+    $paddedExport = array_pad($export['metadata'], 2, null);
+    $paddedExport['value'] = 4;
+    expect($context->getAttribute('metadata')['value'])->toBe(1);
+});
+
+it('preserves reference aliases across nested sibling arrays while isolating successive exports', function (): void {
+    $shared = ['value' => 1];
+    $left = ['slot' => &$shared];
+    $right = ['slot' => &$shared];
+    $context = new Context(['metadata' => ['left' => $left, 'right' => $right]]);
+    $first = $context->toArray();
+    $second = $context->toArray();
+    $first['metadata']['left']['slot']['value'] = 2;
+
+    expect($first['metadata']['right']['slot']['value'])->toBe(2)
+        ->and($second['metadata']['right']['slot']['value'])->toBe(1)
+        ->and($context->getAttribute('metadata')['right']['slot']['value'])->toBe(1)
+        ->and($shared['value'])->toBe(1);
+});
