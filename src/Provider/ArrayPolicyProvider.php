@@ -25,7 +25,7 @@ final class ArrayPolicyProvider implements PolicyProviderInterface
 
     public function provideFor(string $actionId): ?PolicyInterface
     {
-        if (!isset($this->policies[$actionId])) {
+        if (!array_key_exists($actionId, $this->policies)) {
             return null;
         }
 
@@ -35,6 +35,26 @@ final class ArrayPolicyProvider implements PolicyProviderInterface
             return $policy;
         }
 
-        return $policy($this->container);
+        if (!is_callable($policy)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Registered policy "%s" must implement %s or be callable; %s given.',
+                $actionId,
+                PolicyInterface::class,
+                get_debug_type($policy),
+            ));
+        }
+
+        $resolved = $policy($this->container);
+
+        if (!$resolved instanceof PolicyInterface) {
+            throw new \UnexpectedValueException(sprintf(
+                'Policy factory "%s" must return %s; %s returned.',
+                $actionId,
+                PolicyInterface::class,
+                get_debug_type($resolved),
+            ));
+        }
+
+        return $resolved;
     }
 }

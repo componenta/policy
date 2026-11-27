@@ -68,3 +68,23 @@ it('propagates a factory failure after an earlier successful resolution', functi
         expect($error)->toBe($failure);
     }
 });
+
+it('never falls through to another provider when a registered factory returns an invalid result', function (mixed $result): void {
+    $provider = new ArrayPolicyProvider(new FakeContainer(), ['x' => static fn () => $result]);
+    $fallback = new \Componenta\Policy\Tests\Fixture\FakeProvider(['x' => RecordingPolicy::allow()]);
+    $enforcer = new \Componenta\Policy\PolicyEnforcer(
+        new \Componenta\Policy\Provider\CompositePolicyProvider([$provider, $fallback]),
+        behavior: \Componenta\Policy\MissingPolicyBehavior::ALLOW,
+    );
+
+    expect(fn () => $enforcer->can('x', new stdClass()))
+        ->toThrow(UnexpectedValueException::class, 'must return');
+    expect($fallback->calls)->toBe([]);
+})->with([null, false, 'allow', new stdClass()]);
+
+it('rejects a null registration instead of treating it as a missing action', function (): void {
+    $provider = new ArrayPolicyProvider(new FakeContainer(), ['x' => null]);
+
+    expect(fn () => $provider->provideFor('x'))->toThrow(InvalidArgumentException::class);
+    expect($provider->provideFor('unknown'))->toBeNull();
+});
