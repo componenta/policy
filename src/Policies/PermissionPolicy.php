@@ -37,7 +37,8 @@ use InvalidArgumentException;
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
 final class PermissionPolicy extends AbstractPolicy
 {
-    private PermissionCollectionInterface $permissions;
+    /** @var list<string> Canonical required names captured at construction. */
+    private readonly array $permissions;
 
     /**
      * @param PermissionInterface|PermissionCollectionInterface|array<array-key, mixed> $permissions
@@ -48,9 +49,9 @@ final class PermissionPolicy extends AbstractPolicy
         PermissionInterface|PermissionCollectionInterface|array $permissions,
         private readonly ContainsMode $mode = ContainsMode::ALL,
     ) {
-        $this->permissions = self::normalizePermissions($permissions);
+        $this->permissions = array_values(array_unique(self::permissionNames(self::normalizePermissions($permissions))));
 
-        if ($this->permissions->count() === 0) {
+        if ($this->permissions === []) {
             throw new InvalidArgumentException('PermissionPolicy requires at least one permission.');
         }
     }
@@ -70,22 +71,27 @@ final class PermissionPolicy extends AbstractPolicy
             );
         }
 
-        if ($held->contains($this->permissions, $this->mode)) {
-            return true;
+        $missing = [];
+
+        foreach ($this->permissions as $name) {
+            if ($held->contains($name)) {
+                if ($this->mode === ContainsMode::ANY) {
+                    return true;
+                }
+            } else {
+                $missing[] = $name;
+            }
         }
 
-        $missing = array_filter(
-            $this->permissions->toArray(),
-            static fn(PermissionInterface $permission): bool => !$held->contains($permission),
-        );
-
-        $names = self::permissionNames($missing);
+        if ($this->mode === ContainsMode::ALL && $missing === []) {
+            return true;
+        }
 
         return $this->deny(sprintf(
             $this->mode === ContainsMode::ALL
                 ? 'Missing required permissions: %s'
                 : 'Requires at least one of permissions: %s',
-            implode(', ', $names),
+            implode(', ', $missing),
         ));
     }
 

@@ -140,3 +140,55 @@ it('throws when the permission list is empty', function () {
 it('throws when the array contains non-PermissionInterface values', function () {
     expect(fn() => new PermissionPolicy(['string-not-allowed']))->toThrow(InvalidArgumentException::class);
 });
+
+it('keeps required permission names independent of subsequent collection mutations', function (ContainsMode $mode): void {
+    $required = new \Componenta\Policy\Permission\PermissionCollection([new FakePermission('posts.delete')]);
+    $policy = new PermissionPolicy($required, $mode);
+    $unauthorized = new FakeActor(1, new FakeRole('editor', ['posts.update']));
+    $authorized = new FakeActor(2, new FakeRole('admin', ['posts.delete']));
+
+    expect($policy->enforce($unauthorized, $this->context))->toBeInstanceOf(DenyReason::class)
+        ->and($policy->enforce($authorized, $this->context))->toBeTrue();
+
+    $required->remove('posts.delete');
+
+    expect($policy->enforce($unauthorized, $this->context))->toBeInstanceOf(DenyReason::class)
+        ->and($policy->enforce($authorized, $this->context))->toBeTrue();
+
+    $required->add(new FakePermission('posts.update'));
+
+    expect($policy->enforce($unauthorized, $this->context))->toBeInstanceOf(DenyReason::class)
+        ->and($policy->enforce($authorized, $this->context))->toBeTrue();
+})->with([ContainsMode::ALL, ContainsMode::ANY]);
+
+it('captures the canonical required permission name even when the supplied object is mutable', function (): void {
+    $permission = new class implements \Componenta\Policy\Permission\PermissionInterface {
+        public string $name = 'posts.delete';
+
+        public function getName(): string
+        {
+            return $this->name;
+        }
+    };
+    $policy = new PermissionPolicy($permission);
+    $permission->name = 'posts.update';
+
+    expect($policy->enforce(new FakeActor(1, new FakeRole('editor', ['posts.update'])), $this->context))
+        ->toBeInstanceOf(DenyReason::class)
+        ->and($policy->enforce(new FakeActor(2, new FakeRole('admin', ['posts.delete'])), $this->context))
+        ->toBeTrue();
+});
+
+it('continues to read the current permissions held by an actor on every check', function (): void {
+    $held = new \Componenta\Policy\Permission\PermissionCollection();
+    $actor = new readonly class ($held) implements \Componenta\Policy\Actor\PermissionAwareInterface {
+        public function __construct(public \Componenta\Policy\Permission\PermissionCollectionInterface $permissions) {}
+    };
+    $policy = new PermissionPolicy(new FakePermission('posts.update'));
+
+    expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
+    $held->add(new FakePermission('posts.update'));
+    expect($policy->enforce($actor, $this->context))->toBeTrue();
+    $held->remove('posts.update');
+    expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
+});
