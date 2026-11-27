@@ -20,7 +20,7 @@ final class AccessDeniedException extends \RuntimeException
         $message = sprintf(
             'Access denied for action "%s": %s',
             $denied->actionId,
-            $denied->reason->value ?: 'No reason provided',
+            $denied->reason->value === '' ? 'No reason provided' : $denied->reason->value,
         );
 
         parent::__construct($message, $code, $previous);
