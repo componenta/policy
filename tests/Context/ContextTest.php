@@ -60,3 +60,47 @@ describe('immutability', function () {
             ->and($modified->getAttribute('b'))->toBe(2);
     });
 });
+
+it('does not retain top-level references to attributes from constructor input or exported arrays', function (): void {
+    $value = 'original';
+    $attributes = ['a' => &$value];
+    $context = new Context($attributes);
+    $value = 'changed';
+    $exported = $context->toArray();
+    $exported['a'] = 'overwritten';
+
+    expect($context->getAttribute('a'))->toBe('original');
+});
+
+it('detaches attribute references added through withAttributes', function (): void {
+    $value = 'original';
+    $base = new Context(['a' => 'base']);
+    $derived = $base->withAttributes(['a' => &$value]);
+    $value = 'changed';
+    $exported = $derived->toArray();
+    $exported['a'] = 'overwritten';
+
+    expect($base->getAttribute('a'))->toBe('base')
+        ->and($derived->getAttribute('a'))->toBe('original');
+});
+
+it('preserves numeric string attribute names across immutable updates', function (): void {
+    $base = (new Context())->withAttribute('42', true);
+    $derived = $base->withAttribute('other', false)->withAttributes(['42' => 'updated', '99' => 'new']);
+
+    expect($base->getAttribute('42'))->toBeTrue()
+        ->and($derived->getAttribute('42'))->toBe('updated')
+        ->and($derived->getAttribute('99'))->toBe('new')
+        ->and($derived->getAttribute('other'))->toBeFalse()
+        ->and($derived->withoutAttribute('42')->hasAttribute('42'))->toBeFalse()
+        ->and($derived->hasAttribute('42'))->toBeTrue()
+        ->and($derived->hasAttribute('0'))->toBeFalse();
+});
+
+it('preserves resource identity when creating or deriving a context', function (): void {
+    $resource = new stdClass();
+    $context = new Context(['resource' => $resource]);
+
+    expect($context->getAttribute('resource'))->toBe($resource)
+        ->and($context->withAttribute('x', 1)->getAttribute('resource'))->toBe($resource);
+});

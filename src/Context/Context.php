@@ -9,12 +9,24 @@ namespace Componenta\Policy\Context;
  */
 final readonly class Context implements ContextInterface
 {
+    /** @var array<string, mixed> */
+    private array $attributes;
+
     /**
      * @param array<string, mixed> $attributes
      */
-    public function __construct(
-        private array $attributes = [],
-    ) {}
+    public function __construct(array $attributes = [])
+    {
+        // Copy top-level values, not PHP references to the caller's array slots.
+        // Values that are objects intentionally retain their identity.
+        $snapshot = [];
+
+        foreach ($attributes as $name => $value) {
+            $snapshot[$name] = $value;
+        }
+
+        $this->attributes = $snapshot;
+    }
 
     /**
      * @param array<string, mixed> $attributes
@@ -41,12 +53,12 @@ final readonly class Context implements ContextInterface
 
     public function withAttribute(string $name, mixed $value): static
     {
-        return new self([...$this->attributes, $name => $value]);
+        return new self(array_replace($this->attributes, [$name => $value]));
     }
 
     public function withAttributes(array $attributes): static
     {
-        return new self([...$this->attributes, ...$attributes]);
+        return new self(array_replace($this->attributes, $attributes));
     }
 
     public function withoutAttribute(string $name): static
