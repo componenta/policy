@@ -48,3 +48,31 @@ it('of() fully consumes the iterable and uses its policies', function () {
     expect($result)->toBeInstanceOf(DenyReason::class)
         ->and($result->value)->toBe('from iterable');
 });
+
+it('preserves order and all values of an iterable irrespective of keys', function (): void {
+    $first = RecordingPolicy::allow();
+    $second = RecordingPolicy::deny('second');
+    $third = RecordingPolicy::allow();
+
+    $input = (static function () use ($first, $second, $third): iterable {
+        yield 'same' => $first;
+        yield 'same' => $second;
+        yield 0 => $third;
+    })();
+
+    $result = AllOf::of($input)->enforce($this->actor, $this->context);
+
+    expect($result)->toBeInstanceOf(DenyReason::class)
+        ->and($result->value)->toBe('second')
+        ->and($first->calls)->toBe(1)
+        ->and($second->calls)->toBe(1)
+        ->and($third->calls)->toBe(0);
+});
+
+it('accepts arrays containing string and integer keys without named-argument unpacking', function (): void {
+    $result = AllOf::of(['first' => RecordingPolicy::allow(), 0 => RecordingPolicy::deny('second')])
+        ->enforce($this->actor, $this->context);
+
+    expect($result)->toBeInstanceOf(DenyReason::class)
+        ->and($result->value)->toBe('second');
+});

@@ -28,7 +28,7 @@ final class OneOf extends AbstractPolicy
      */
     public static function of(iterable $policies): self
     {
-        return new self(...$policies);
+        return new self(...(is_array($policies) ? array_values($policies) : iterator_to_array($policies, false)));
     }
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason
