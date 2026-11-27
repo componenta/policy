@@ -37,18 +37,20 @@ final class RolePolicy extends AbstractPolicy
      */
     public function __construct(string|array $roles)
     {
-        $roles = (array) $roles;
+        $snapshot = [];
 
-        foreach ($roles as $role) {
+        foreach ((array) $roles as $role) {
             if (!is_string($role)) {
                 throw new InvalidArgumentException(sprintf(
                     'RolePolicy expects role names to be strings; %s given.',
                     get_debug_type($role),
                 ));
             }
+
+            $snapshot[] = $role;
         }
 
-        $this->roles = $roles;
+        $this->roles = $snapshot;
     }
 
     public function enforce(object $actor, ContextInterface $context): true|DenyReason

@@ -98,3 +98,16 @@ it('accepts a RoleInterface directly as the actor', function () {
 
     expect($policy->enforce(new FakeRole('admin'), $this->context))->toBeTrue();
 });
+
+it('keeps the configured role allowlist independent of caller references', function (): void {
+    $name = 'admin';
+    $policy = new RolePolicy([&$name]);
+
+    expect($policy->enforce(new FakeRole('admin'), $this->context))->toBeTrue()
+        ->and($policy->enforce(new FakeRole('editor'), $this->context))->toBeInstanceOf(DenyReason::class);
+
+    $name = 'editor';
+
+    expect($policy->enforce(new FakeRole('admin'), $this->context))->toBeTrue()
+        ->and($policy->enforce(new FakeRole('editor'), $this->context))->toBeInstanceOf(DenyReason::class);
+});
