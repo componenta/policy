@@ -1,6 +1,6 @@
 # Development integration
 
-This branch targets the next Policy 4.x release line (`4.0.x-dev` for both `dev-main` and the feature branch). The published 3.x line supports PHP 8.4; raising the runtime minimum to PHP 8.5.13 and requiring the current Componenta dependency majors is a breaking baseline change.
+This branch targets the next Policy 4.x release line (`4.0.x-dev` for `dev-main`, the callback feature branch and the audit branch). The published 3.x line supports PHP 8.4; raising the runtime minimum to PHP 8.5.13 and requiring the current Componenta dependency majors is a breaking baseline change.
 
 This branch requires PHP 8.5.13+ and the current Componenta major lines. Its public Composer manifest declares normal semantic constraints. Some current library sources needed small dependency compatibility updates before the complete graph could use Config 4 and DI 6. Until those updates are released, a consumer of this development branch must explicitly select their source branches.
 

@@ -34,7 +34,8 @@
         },
         "branch-alias": {
             "dev-main": "4.0.x-dev",
-            "dev-spec/attribute-callbacks-2026-11-26": "4.0.x-dev"
+            "dev-spec/attribute-callbacks-2026-11-26": "4.0.x-dev",
+            "dev-fix/policy-audit-2026-11-27": "4.0.x-dev"
         }
     },
     "config": {
