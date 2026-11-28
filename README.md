@@ -140,7 +140,7 @@ $user = new User(new PermissionCollection([PostPermission::CREATE]));
 $policy = new PermissionPolicy(PostPermission::CREATE);
 ```
 
-`PermissionPolicy` merges permissions exposed directly, through one role, through `RoleCollectionAwareInterface`, or through a direct `RoleCollectionInterface`. An empty role collection is still a valid permission source and therefore yields a normal missing-permission denial rather than `InvalidPolicyActorException`.
+`PermissionPolicy` merges permissions exposed directly, through one role, through `RoleCollectionAwareInterface`, or through a direct `RoleCollectionInterface`. An empty role collection is still a valid permission source and therefore yields a normal missing-permission denial rather than `InvalidPolicyActorException`. Identical permission collection objects are inspected only once per evaluation, and only required-name matches are retained. Decisions and permissions are never cached across evaluations.
 
 ## Context
 

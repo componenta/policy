@@ -140,7 +140,7 @@ $user = new User(new PermissionCollection([PostPermission::CREATE]));
 $policy = new PermissionPolicy(PostPermission::CREATE);
 ```
 
-`PermissionPolicy` объединяет разрешения, полученные напрямую от актора, из одной роли, через `RoleCollectionAwareInterface` или из переданного напрямую `RoleCollectionInterface`. Пустая коллекция ролей остаётся корректным источником разрешений и даёт обычный отказ из-за отсутствующего permission, а не `InvalidPolicyActorException`.
+`PermissionPolicy` объединяет разрешения, полученные напрямую от актора, из одной роли, через `RoleCollectionAwareInterface` или из переданного напрямую `RoleCollectionInterface`. Пустая коллекция ролей остаётся корректным источником разрешений и даёт обычный отказ из-за отсутствующего permission, а не `InvalidPolicyActorException`. Один и тот же объект коллекции разрешений обходится один раз за проверку; сохраняются только совпадения с требуемыми именами. Решения и разрешения не кешируются между проверками.
 
 ## Контекст
 

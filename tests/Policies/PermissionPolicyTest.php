@@ -3,13 +3,19 @@
 declare(strict_types=1);
 
 use Componenta\Policy\Actor\Guest;
+use Componenta\Policy\Actor\PermissionAwareInterface;
+use Componenta\Policy\Actor\RoleAwareInterface;
 use Componenta\Policy\Actor\RoleCollection;
 use Componenta\Policy\Actor\RoleCollectionAwareInterface;
 use Componenta\Policy\Actor\RoleCollectionInterface;
+use Componenta\Policy\Actor\RoleInterface;
 use Componenta\Policy\ContainsMode;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
+use Componenta\Policy\Permission\PermissionCollection;
+use Componenta\Policy\Permission\PermissionCollectionInterface;
+use Componenta\Policy\Permission\PermissionInterface;
 use Componenta\Policy\Policies\PermissionPolicy;
 use Componenta\Policy\Tests\Fixture\FakeActor;
 use Componenta\Policy\Tests\Fixture\FakeMultiRoleActor;
@@ -191,4 +197,88 @@ it('continues to read the current permissions held by an actor on every check', 
     expect($policy->enforce($actor, $this->context))->toBeTrue();
     $held->remove('posts.update');
     expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
+});
+
+final class CountingPolicyPermissions implements PermissionCollectionInterface
+{
+    public int $reads = 0;
+
+    public function __construct(public PermissionCollection $inner) {}
+
+    public function getIterator(): Traversable
+    {
+        ++$this->reads;
+        yield from $this->inner;
+    }
+
+    public function count(): int { return count($this->inner); }
+    public function toArray(): array { return $this->inner->toArray(); }
+
+    public function contains(
+        PermissionInterface|PermissionCollectionInterface|string $permission,
+        ContainsMode $mode = ContainsMode::ANY,
+    ): bool {
+        return $this->inner->contains($permission, $mode);
+    }
+}
+
+it('inspects a permission collection shared by direct and role capabilities once per check', function (): void {
+    $permission = new FakePermission('posts.update');
+    $held = new CountingPolicyPermissions(new PermissionCollection([$permission]));
+    $actor = new class($held) implements PermissionAwareInterface, RoleAwareInterface {
+        public RoleInterface $role;
+        public function __construct(public PermissionCollectionInterface $permissions)
+        {
+            $this->role = new class($permissions) implements RoleInterface {
+                public string $name = 'editor';
+                public function __construct(public PermissionCollectionInterface $permissions) {}
+                public function outranks(RoleAwareInterface|RoleInterface $other): bool { return false; }
+            };
+        }
+    };
+    $policy = new PermissionPolicy($permission);
+
+    expect($policy->enforce($actor, $this->context))->toBeTrue()
+        ->and($held->reads)->toBe(1);
+    $held->inner->remove('posts.update');
+    expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class)
+        ->and($held->reads)->toBe(2);
+    $held->inner->add($permission);
+    expect($policy->enforce($actor, $this->context))->toBeTrue()
+        ->and($held->reads)->toBe(3);
+});
+
+it('does not enumerate a direct role collection twice if it exposes itself', function (): void {
+    $actor = new class implements RoleCollectionInterface, RoleCollectionAwareInterface {
+        public int $reads = 0;
+        public RoleCollectionInterface $roles { get => $this; }
+
+        public function getIterator(): Traversable
+        {
+            ++$this->reads;
+            yield 'editor' => new FakeRole('editor', ['posts.update']);
+        }
+
+        public function count(): int { return 1; }
+        public function toArray(): array { return iterator_to_array($this); }
+        public function contains(
+            RoleInterface|RoleCollectionInterface|string $role,
+            ContainsMode $mode = ContainsMode::ANY,
+        ): bool {
+            return (new RoleCollection($this))->contains($role, $mode);
+        }
+    };
+
+    expect((new PermissionPolicy(new FakePermission('posts.update')))->enforce($actor, $this->context))
+        ->toBeTrue()
+        ->and($actor->reads)->toBe(1);
+});
+
+it('matches numeric permission names without conflating distinct strings', function (): void {
+    $actor = new FakeActor(1, new FakeRole('editor', ['0', '1', '01']));
+    $policy = new PermissionPolicy([new FakePermission('0'), new FakePermission('1'), new FakePermission('01')]);
+
+    expect($policy->enforce($actor, $this->context))->toBeTrue()
+        ->and((new PermissionPolicy(new FakePermission('001')))->enforce($actor, $this->context))
+        ->toBeInstanceOf(DenyReason::class);
 });

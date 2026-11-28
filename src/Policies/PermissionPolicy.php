@@ -17,6 +17,7 @@ use Componenta\Policy\Internal\CollectionElement;
 use Componenta\Policy\Permission\PermissionCollection;
 use Componenta\Policy\Permission\PermissionCollectionInterface;
 use Componenta\Policy\Permission\PermissionInterface;
+use Componenta\Policy\Policies\Internal\RoleSources;
 use InvalidArgumentException;
 
 /**
@@ -26,8 +27,8 @@ use InvalidArgumentException;
  * The actor may expose permissions directly ({@see PermissionAwareInterface}),
  * through a single role ({@see RoleAwareInterface}), through a role collection
  * ({@see RoleCollectionAwareInterface}), or be a role collection directly.
- * All discovered sources are merged into one effective permission collection;
- * granting a permission via any source is enough.
+ * Permissions are matched against the union of all discovered sources. Each
+ * distinct permission collection is inspected once per evaluation.
  *
  * {@see Guest} is a valid anonymous actor and is denied normally. Other actor
  * objects that expose none of the supported permission/role capabilities are
@@ -63,7 +64,7 @@ final class PermissionPolicy extends AbstractPolicy
             return $this->deny('Guest actor has no permissions');
         }
 
-        $held = $this->extractPermissions($actor);
+        $held = $this->matchPermissions($actor);
 
         if ($held === null) {
             throw InvalidPolicyActorException::expected(
@@ -75,7 +76,7 @@ final class PermissionPolicy extends AbstractPolicy
         $missing = [];
 
         foreach ($this->permissions as $name) {
-            if ($held->contains($name)) {
+            if ($held[$name]) {
                 if ($this->mode === ContainsMode::ANY) {
                     return true;
                 }
@@ -96,38 +97,36 @@ final class PermissionPolicy extends AbstractPolicy
         ));
     }
 
-    private function extractPermissions(object $actor): ?PermissionCollectionInterface
+    /** @return array<array-key, bool>|null */
+    private function matchPermissions(object $actor): ?array
     {
-        $permissions = new PermissionCollection();
-        $foundSource = false;
+        $sources = RoleSources::extract($actor);
+        if (!$actor instanceof PermissionAwareInterface && $sources === null) {
+            return null;
+        }
+
+        $matches = array_fill_keys($this->permissions, false);
+        $visited = [];
 
         if ($actor instanceof PermissionAwareInterface) {
-            self::appendPermissions($permissions, $actor->permissions);
-            $foundSource = true;
+            self::matchCollection($matches, $visited, $actor->permissions);
         }
 
-        if ($actor instanceof RoleAwareInterface) {
-            self::appendPermissions($permissions, $actor->role->permissions);
-            $foundSource = true;
-        }
+        if ($sources !== null) {
+            foreach ($sources['roles'] as $role) {
+                if ($role !== $actor) {
+                    self::matchCollection($matches, $visited, $role->permissions);
+                }
+            }
 
-        if ($actor instanceof RoleCollectionAwareInterface) {
-            $foundSource = true;
-
-            foreach ($actor->roles as $role) {
-                self::appendPermissions($permissions, CollectionElement::role($role)->permissions);
+            foreach ($sources['collections'] as $collection) {
+                foreach ($collection as $role) {
+                    self::matchCollection($matches, $visited, CollectionElement::role($role)->permissions);
+                }
             }
         }
 
-        if ($actor instanceof RoleCollectionInterface) {
-            $foundSource = true;
-
-            foreach ($actor as $role) {
-                self::appendPermissions($permissions, CollectionElement::role($role)->permissions);
-            }
-        }
-
-        return $foundSource ? $permissions : null;
+        return $matches;
     }
 
     /**
@@ -153,10 +152,25 @@ final class PermissionPolicy extends AbstractPolicy
         return new PermissionCollection($permissions);
     }
 
-    private static function appendPermissions(PermissionCollection $target, PermissionCollectionInterface $source): void
+    /**
+     * @param array<array-key, bool> $matches
+     * @param array<int, PermissionCollectionInterface> $visited
+     */
+    private static function matchCollection(array &$matches, array &$visited, PermissionCollectionInterface $source): void
     {
+        $id = spl_object_id($source);
+        if (isset($visited[$id])) {
+            return;
+        }
+
+        // Retain the collection until the evaluation ends so IDs cannot be reused.
+        $visited[$id] = $source;
+
         foreach ($source as $permission) {
-            $target->add(CollectionElement::permission($permission));
+            $name = CollectionElement::permission($permission)->getName();
+            if (isset($matches[$name])) {
+                $matches[$name] = true;
+            }
         }
     }
 
