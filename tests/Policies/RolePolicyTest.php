@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use Componenta\Policy\Actor\Guest;
+use Componenta\Policy\Actor\RoleAwareInterface;
 use Componenta\Policy\Actor\RoleCollection;
+use Componenta\Policy\Actor\RoleCollectionAwareInterface;
+use Componenta\Policy\Actor\RoleCollectionInterface;
+use Componenta\Policy\Actor\RoleInterface;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
@@ -110,4 +114,33 @@ it('keeps the configured role allowlist independent of caller references', funct
 
     expect($policy->enforce(new FakeRole('admin'), $this->context))->toBeTrue()
         ->and($policy->enforce(new FakeRole('editor'), $this->context))->toBeInstanceOf(DenyReason::class);
+});
+
+it('checks both role capabilities and uses their current values on every evaluation', function (): void {
+    $roles = new RoleCollection([new FakeRole('admin'), new FakeRole('editor')]);
+    $actor = new class(new FakeRole('user'), $roles) implements RoleAwareInterface, RoleCollectionAwareInterface {
+        public function __construct(
+            public RoleInterface $role,
+            public RoleCollectionInterface $roles,
+        ) {}
+    };
+    $policy = new RolePolicy('admin');
+
+    expect($policy->enforce($actor, $this->context))->toBeTrue();
+    $roles->remove('admin');
+
+    $denied = $policy->enforce($actor, $this->context);
+    expect($denied)->toBeInstanceOf(DenyReason::class)
+        ->and($denied->value)->toContain('user', 'editor');
+
+    $actor->role = new FakeRole('admin');
+    expect($policy->enforce($actor, $this->context))->toBeTrue();
+
+    $actor->role = new FakeRole('user');
+    $roles->remove('editor');
+    expect($policy->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
+
+    $roles->add(new FakeRole('admin'));
+    expect($policy->enforce($actor, $this->context))->toBeTrue()
+        ->and((new RolePolicy([]))->enforce($actor, $this->context))->toBeInstanceOf(DenyReason::class);
 });

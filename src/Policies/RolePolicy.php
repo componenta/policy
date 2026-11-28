@@ -12,13 +12,15 @@ use Componenta\Policy\Actor\RoleInterface;
 use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
+use Componenta\Policy\Policies\Internal\RoleSources;
 use InvalidArgumentException;
 
 /**
  * Allows the action when the actor's role name is in the configured allowlist.
  *
  * The actor may expose a single role, a role collection, or be a
- * {@see RoleInterface}/{@see RoleCollectionInterface} directly. {@see Guest}
+ * {@see RoleInterface}/{@see RoleCollectionInterface} directly. For actors
+ * exposing both role capabilities, both sources are considered. {@see Guest}
  * is a valid anonymous actor and is denied normally. Other actors that expose
  * no supported role capability are treated as a policy integration error.
  *
@@ -59,49 +61,51 @@ final class RolePolicy extends AbstractPolicy
             return $this->deny('Guest actor has no roles');
         }
 
-        $role = $this->extractRole($actor);
+        $sources = RoleSources::extract($actor);
 
-        if ($role === null) {
+        if ($sources === null) {
             throw InvalidPolicyActorException::expected(
                 actor: $actor,
                 expectedType: RoleAwareInterface::class . '|' . RoleCollectionAwareInterface::class . '|' . RoleInterface::class . '|' . RoleCollectionInterface::class,
             );
         }
 
-        if ($role instanceof RoleCollectionInterface) {
-            foreach ($this->roles as $allowedRole) {
-                if ($role->contains($allowedRole)) {
-                    return true;
+        foreach ($sources as $source) {
+            if ($source instanceof RoleCollectionInterface) {
+                foreach ($this->roles as $allowedRole) {
+                    if ($source->contains($allowedRole)) {
+                        return true;
+                    }
                 }
+            } elseif (in_array($source->name, $this->roles, true)) {
+                return true;
             }
+        }
 
+        $first = $sources[0];
+        if (count($sources) === 1 && !$first instanceof RoleCollectionInterface) {
             return $this->deny(sprintf(
-                'Actor roles "%s" do not include allowed roles: %s',
-                implode(', ', self::roleNames($role)),
+                'Actor role "%s" is not in allowed roles: %s',
+                $first->name,
                 implode(', ', $this->roles),
             ));
         }
 
-        if (in_array($role->name, $this->roles, true)) {
-            return true;
+        $names = [];
+        foreach ($sources as $source) {
+            if ($source instanceof RoleCollectionInterface) {
+                foreach ($source as $role) {
+                    $names[] = $role->name;
+                }
+            } else {
+                $names[] = $source->name;
+            }
         }
 
         return $this->deny(sprintf(
-            'Actor role "%s" is not in allowed roles: %s',
-            $role->name,
+            'Actor roles "%s" do not include allowed roles: %s',
+            implode(', ', $names),
             implode(', ', $this->roles),
         ));
-    }
-
-    /** @return string[] */
-    private static function roleNames(RoleCollectionInterface $roles): array
-    {
-        $names = [];
-
-        foreach ($roles as $role) {
-            $names[] = $role->name;
-        }
-
-        return $names;
     }
 }

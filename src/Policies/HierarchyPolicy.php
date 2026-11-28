@@ -14,6 +14,7 @@ use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
 use Componenta\Policy\Exception\InvalidPolicyContextAttributeException;
 use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
+use Componenta\Policy\Policies\Internal\RoleSources;
 
 /**
  * Allows the action when one of the actor's roles strictly outranks every
@@ -41,7 +42,7 @@ final class HierarchyPolicy extends AbstractPolicy
         }
 
         $target = $context->getAttribute(self::ATTR_TARGET);
-        $targetRoles = self::extractRoleSources($target);
+        $targetRoles = RoleSources::extract($target);
 
         if ($targetRoles === null) {
             throw InvalidPolicyContextAttributeException::expected(
@@ -55,7 +56,7 @@ final class HierarchyPolicy extends AbstractPolicy
             return $this->deny('Guest actor has no role hierarchy');
         }
 
-        $actorRoles = self::extractRoleSources($actor);
+        $actorRoles = RoleSources::extract($actor);
 
         if ($actorRoles === null) {
             throw InvalidPolicyActorException::expected(
@@ -84,30 +85,6 @@ final class HierarchyPolicy extends AbstractPolicy
             implode(', ', self::roleNames($actorRoles)),
             implode(', ', self::roleNames($targetRoles)),
         ));
-    }
-
-    /** @return list<RoleInterface|RoleCollectionInterface>|null */
-    private static function extractRoleSources(mixed $subject): ?array
-    {
-        if ($subject instanceof RoleInterface || $subject instanceof RoleCollectionInterface) {
-            return [$subject];
-        }
-
-        if (!$subject instanceof RoleAwareInterface && !$subject instanceof RoleCollectionAwareInterface) {
-            return null;
-        }
-
-        $roles = [];
-
-        if ($subject instanceof RoleAwareInterface) {
-            $roles[] = $subject->role;
-        }
-
-        if ($subject instanceof RoleCollectionAwareInterface) {
-            $roles[] = $subject->roles;
-        }
-
-        return $roles;
     }
 
     /**
