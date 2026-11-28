@@ -146,6 +146,8 @@ $policy = new PermissionPolicy(PostPermission::CREATE);
 
 `ContextInterface` is an immutable attribute bag for one policy evaluation. Arrays passed to `PolicyEnforcer` are converted through `ContextFactoryInterface`.
 
+The default `Context` isolates array reference cells while preserving object and resource identity. To bound work on pathological copy-on-write arrays, it permits up to 100,000 visited entries per inspection or reference-copy stage, shared across all attributes in a construction or export. Inspection includes the top-level attribute entries. Repeated array occurrences count separately; already visited reference cells are not copied again. Exceeding a budget throws `ContextCapacityException` (a policy evaluation error), not an authorization denial. Pass large domain resources as objects rather than expanding them into context arrays.
+
 Policies that require context validate it explicitly:
 
 - missing mandatory attribute -> `MissingPolicyContextAttributeException`;

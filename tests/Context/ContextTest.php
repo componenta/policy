@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Componenta\Arrayable\Arrayable;
 use Componenta\Policy\Context\Context;
+use Componenta\Policy\Exception\ContextCapacityException;
 
 it('returns the default when an attribute is missing', function () {
     $context = new Context(['a' => 1]);
@@ -251,4 +252,62 @@ it('preserves reference aliases across nested sibling arrays while isolating suc
         ->and($second['metadata']['right']['slot']['value'])->toBe(1)
         ->and($context->getAttribute('metadata')['right']['slot']['value'])->toBe(1)
         ->and($shared['value'])->toBe(1);
+});
+
+it('bounds inspection of copy-on-write array trees without references', function (): void {
+    $tree = [1];
+    for ($i = 0; $i < 16; $i++) {
+        $tree = [$tree, $tree];
+    }
+
+    expect(fn () => new Context(['tree' => $tree]))->toThrow(ContextCapacityException::class);
+});
+
+it('bounds duplication of copy-on-write array trees containing references', function (): void {
+    $value = 1;
+    $tree = [1];
+    for ($i = 0; $i < 16; $i++) {
+        $tree = [$tree, $tree];
+    }
+
+    expect(fn () => new Context(['tree' => ['reference' => &$value, 'payload' => $tree]]))
+        ->toThrow(ContextCapacityException::class);
+});
+
+it('shares the inspection budget across all attributes and rejects oversized derived contexts', function (): void {
+    $payload = array_fill(0, 60_000, 1);
+    $context = new Context(['first' => $payload]);
+
+    expect(fn () => new Context(['first' => $payload, 'second' => $payload]))->toThrow(ContextCapacityException::class)
+        ->and(fn () => $context->withAttribute('second', $payload))->toThrow(ContextCapacityException::class)
+        ->and(fn () => $context->withAttributes(['second' => $payload]))->toThrow(ContextCapacityException::class)
+        ->and($context->hasAttribute('second'))->toBeFalse()
+        ->and($context->getAttribute('first'))->toBe($payload);
+});
+
+it('shares the reference-copy budget across attributes even when inspection stops early', function (): void {
+    $value = 1;
+    $payload = ['reference' => &$value, 'payload' => array_fill(0, 60_000, 1)];
+
+    expect(fn () => new Context(['first' => $payload, 'second' => $payload]))->toThrow(ContextCapacityException::class);
+});
+
+it('accepts the exact inspection limit including the top-level entries', function (): void {
+    $payload = array_fill(0, 99_999, 1);
+    $context = new Context(['payload' => $payload]);
+
+    expect($context->getAttribute('payload'))->toBe($payload)
+        ->and(fn () => new Context(['payload' => array_fill(0, 100_000, 1)]))->toThrow(ContextCapacityException::class);
+});
+
+it('can safely read and export referenced arrays at the copy budget boundary', function (): void {
+    $value = 1;
+    $context = new Context(['data' => ['reference' => &$value, 'payload' => array_fill(0, 99_998, 1)]]);
+    $value = 2;
+
+    $read = $context->getAttribute('data');
+    $export = $context->toArray();
+    expect($read['reference'])->toBe(1)
+        ->and($export['data']['reference'])->toBe(1)
+        ->and($read['payload'])->toHaveCount(99_998);
 });

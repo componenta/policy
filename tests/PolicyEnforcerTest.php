@@ -181,3 +181,11 @@ describe('immutable configuration', function () {
         expect($spy->lastContext?->getAttribute('__stamped_by_factory'))->toBe('x');
     });
 });
+
+it('does not convert context capacity errors into decisions even with permissive missing-policy behavior', function (): void {
+    $payload = array_fill(0, 100_000, 1);
+    $enforcer = policyEnforcerForTests([], MissingPolicyBehavior::ALLOW);
+
+    expect(fn () => $enforcer->can('unmapped', policyTestActor(), ['payload' => $payload]))
+        ->toThrow(\Componenta\Policy\Exception\ContextCapacityException::class);
+});
