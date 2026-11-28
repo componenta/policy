@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Componenta\Policy\Permission;
 
 use Componenta\Policy\ContainsMode;
+use Componenta\Policy\Internal\CollectionElement;
 
 /**
  * Default {@see PermissionCollectionInterface} implementation.
@@ -83,7 +84,7 @@ final class PermissionCollection implements PermissionCollectionInterface
         if ($permission instanceof PermissionCollectionInterface) {
             if ($mode === ContainsMode::ANY) {
                 foreach ($permission as $p) {
-                    if (isset($this->permissions[$p->getName()])) {
+                    if (isset($this->permissions[CollectionElement::permission($p)->getName()])) {
                         return true;
                     }
                 }
@@ -92,7 +93,7 @@ final class PermissionCollection implements PermissionCollectionInterface
             }
 
             foreach ($permission as $p) {
-                if (!isset($this->permissions[$p->getName()])) {
+                if (!isset($this->permissions[CollectionElement::permission($p)->getName()])) {
                     return false;
                 }
             }

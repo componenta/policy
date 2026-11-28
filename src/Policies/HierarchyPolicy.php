@@ -13,8 +13,8 @@ use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
 use Componenta\Policy\Exception\InvalidPolicyContextAttributeException;
-use Componenta\Policy\Exception\InvalidRoleCollectionException;
 use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
+use Componenta\Policy\Internal\CollectionElement;
 use Componenta\Policy\Policies\Internal\RoleSources;
 
 /**
@@ -103,24 +103,11 @@ final class HierarchyPolicy extends AbstractPolicy
             }
 
             foreach ($source as $role) {
-                $result[] = self::requireRole($role);
+                $result[] = CollectionElement::role($role);
             }
         }
 
         return $result;
-    }
-
-    private static function requireRole(mixed $role): RoleInterface
-    {
-        if (!$role instanceof RoleInterface) {
-            throw new InvalidRoleCollectionException(sprintf(
-                'Role collection must yield instances of %s, got %s.',
-                RoleInterface::class,
-                get_debug_type($role),
-            ));
-        }
-
-        return $role;
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Componenta\Policy\Actor;
 
 use Componenta\Policy\ContainsMode;
+use Componenta\Policy\Internal\CollectionElement;
 
 /**
  * Default {@see RoleCollectionInterface} implementation.
@@ -46,7 +47,7 @@ final class RoleCollection implements RoleCollectionInterface
         if ($role instanceof RoleCollectionInterface) {
             if ($mode === ContainsMode::ANY) {
                 foreach ($role as $item) {
-                    if (isset($this->roles[$item->name])) {
+                    if (isset($this->roles[CollectionElement::role($item)->name])) {
                         return true;
                     }
                 }
@@ -55,7 +56,7 @@ final class RoleCollection implements RoleCollectionInterface
             }
 
             foreach ($role as $item) {
-                if (!isset($this->roles[$item->name])) {
+                if (!isset($this->roles[CollectionElement::role($item)->name])) {
                     return false;
                 }
             }

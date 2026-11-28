@@ -13,6 +13,7 @@ use Componenta\Policy\ContainsMode;
 use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
+use Componenta\Policy\Internal\CollectionElement;
 use Componenta\Policy\Permission\PermissionCollection;
 use Componenta\Policy\Permission\PermissionCollectionInterface;
 use Componenta\Policy\Permission\PermissionInterface;
@@ -114,7 +115,7 @@ final class PermissionPolicy extends AbstractPolicy
             $foundSource = true;
 
             foreach ($actor->roles as $role) {
-                self::appendPermissions($permissions, $role->permissions);
+                self::appendPermissions($permissions, CollectionElement::role($role)->permissions);
             }
         }
 
@@ -122,7 +123,7 @@ final class PermissionPolicy extends AbstractPolicy
             $foundSource = true;
 
             foreach ($actor as $role) {
-                self::appendPermissions($permissions, $role->permissions);
+                self::appendPermissions($permissions, CollectionElement::role($role)->permissions);
             }
         }
 
@@ -155,7 +156,7 @@ final class PermissionPolicy extends AbstractPolicy
     private static function appendPermissions(PermissionCollection $target, PermissionCollectionInterface $source): void
     {
         foreach ($source as $permission) {
-            $target->add($permission);
+            $target->add(CollectionElement::permission($permission));
         }
     }
 
@@ -168,7 +169,7 @@ final class PermissionPolicy extends AbstractPolicy
         $names = [];
 
         foreach ($permissions as $permission) {
-            $names[] = $permission->getName();
+            $names[] = CollectionElement::permission($permission)->getName();
         }
 
         return $names;

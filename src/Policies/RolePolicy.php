@@ -12,6 +12,7 @@ use Componenta\Policy\Actor\RoleInterface;
 use Componenta\Policy\Context\ContextInterface;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
+use Componenta\Policy\Internal\CollectionElement;
 use Componenta\Policy\Policies\Internal\RoleSources;
 use InvalidArgumentException;
 
@@ -95,7 +96,7 @@ final class RolePolicy extends AbstractPolicy
         foreach ($sources as $source) {
             if ($source instanceof RoleCollectionInterface) {
                 foreach ($source as $role) {
-                    $names[] = $role->name;
+                    $names[] = CollectionElement::role($role)->name;
                 }
             } else {
                 $names[] = $source->name;
