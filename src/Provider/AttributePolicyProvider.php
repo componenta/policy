@@ -12,6 +12,7 @@ use Componenta\Policy\Policies\AllOf as AllOfPolicy;
 use Componenta\Policy\Policies\OneOf as OneOfPolicy;
 use Componenta\Policy\PolicyInterface;
 use Componenta\Policy\PolicyProviderInterface;
+use InvalidArgumentException;
 use UnexpectedValueException;
 
 /**
@@ -99,13 +100,13 @@ final class AttributePolicyProvider implements PolicyProviderInterface
         $policies = [];
 
         foreach ($reflector->getAttributes(PolicyInterface::class, \ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
-            $policies[] = $attribute->newInstance();
+            $policies[] = $this->resolveDeclaration($attribute->newInstance());
         }
 
         // Policy and its subclasses carry a class name resolved through the DI factory,
         // enabling policies with container-managed dependencies.
         foreach ($reflector->getAttributes(Policy::class, \ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
-            $policies[] = $this->resolvePolicyReference($attribute->newInstance());
+            $policies[] = $this->resolveDeclaration($attribute->newInstance());
         }
 
         foreach ($reflector->getAttributes(AllOf::class) as $attribute) {
@@ -122,16 +123,29 @@ final class AttributePolicyProvider implements PolicyProviderInterface
     private function resolveComposite(AllOf|OneOf $composite): PolicyInterface
     {
         $resolved = array_map(
-            fn(Policy|PolicyInterface $policy): PolicyInterface =>
-                $policy instanceof PolicyInterface
-                    ? $policy
-                    : $this->resolvePolicyReference($policy),
+            fn(Policy|PolicyInterface $policy): PolicyInterface => $this->resolveDeclaration($policy),
             $composite->policies,
         );
 
         return $composite instanceof AllOf
             ? AllOfPolicy::of($resolved)
             : OneOfPolicy::of($resolved);
+    }
+
+    private function resolveDeclaration(Policy|PolicyInterface $policy): PolicyInterface
+    {
+        if ($policy instanceof PolicyInterface) {
+            if ($policy instanceof Policy) {
+                throw new InvalidArgumentException(sprintf(
+                    'Ambiguous policy declaration "%s": use either a direct policy or a policy reference, not both.',
+                    $policy::class,
+                ));
+            }
+
+            return $policy;
+        }
+
+        return $this->resolvePolicyReference($policy);
     }
 
     private function resolvePolicyReference(Policy $policy): PolicyInterface

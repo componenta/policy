@@ -185,7 +185,7 @@ final class PostController {}
 
 When a policy needs DI services, use `Componenta\Policy\Attribute\Policy` and let `AttributePolicyProvider` create it through `Componenta\DI\FactoryInterface`.
 
-`Componenta\Policy\Attribute\AllOf` and `Componenta\Policy\Attribute\OneOf` compose direct policies and policy references. An empty `AllOf` allows (vacuous truth); an empty `OneOf` denies. Do not use an empty `AllOf` as a placeholder for a rule that should restrict access. Use `Deny` explicitly.
+`Componenta\Policy\Attribute\AllOf` and `Componenta\Policy\Attribute\OneOf` compose direct policies and policy references. An empty `AllOf` allows (vacuous truth); an empty `OneOf` denies. Do not use an empty `AllOf` as a placeholder for a rule that should restrict access. Use `Deny` explicitly. A declaration must be either a direct `PolicyInterface` implementation or an `Attribute\Policy` reference. A class combining both is rejected with `InvalidArgumentException`, including inside `AllOf` and `OneOf`. To combine a direct rule and a referenced rule, declare them separately.
 
 Class-level attributes apply to class action IDs; method-level attributes apply to `Class::method` IDs. Method lookups do not automatically include class-level rules. Integrations requiring both levels must enforce both or explicitly combine the policies. The first-match provider chain can also intentionally replace an attribute policy with a configured policy; use `AllOfPolicyProvider` when all matching providers must constrain the action.
 

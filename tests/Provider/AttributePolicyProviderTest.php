@@ -2,7 +2,14 @@
 
 declare(strict_types=1);
 
+use Componenta\DI\FactoryInterface;
+use Componenta\Policy\Attribute\AllOf;
+use Componenta\Policy\Attribute\OneOf;
+use Componenta\Policy\Attribute\Policy;
 use Componenta\Policy\Context\Context;
+use Componenta\Policy\Context\ContextInterface;
+use Componenta\Policy\Policies\Allow;
+use Componenta\Policy\Policies\Deny;
 use Componenta\Policy\PolicyInterface;
 use Componenta\Policy\Provider\AttributePolicyProvider;
 use Componenta\Policy\Tests\Fixture\AttributeTargets\ChildInheritingBasePolicy;
@@ -122,4 +129,63 @@ describe('class-hierarchy attribute discovery', function () {
         expect($policy->enforce($moderator, new Context()))->not->toBeTrue()
             ->and($policy->enforce($admin, new Context()))->not->toBeTrue();
     });
+});
+
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
+final readonly class AmbiguousPolicyAttribute extends Policy implements PolicyInterface
+{
+    public function __construct()
+    {
+        parent::__construct(Deny::class);
+    }
+
+    public function enforce(object $actor, ContextInterface $context): true
+    {
+        return true;
+    }
+}
+
+#[AmbiguousPolicyAttribute]
+final class AmbiguousPolicyAttributeTarget
+{
+    #[AmbiguousPolicyAttribute]
+    public function direct(): void {}
+
+    #[AllOf(new AmbiguousPolicyAttribute())]
+    public function all(): void {}
+
+    #[OneOf(new AmbiguousPolicyAttribute())]
+    public function one(): void {}
+
+    #[Allow]
+    #[Policy(Deny::class)]
+    public function explicit(): void {}
+}
+
+it('rejects ambiguous direct and nested declarations without resolving the reference through DI', function (string $action): void {
+    $factory = new class implements FactoryInterface {
+        public int $calls = 0;
+
+        public function make(string $entry, array $params = []): object
+        {
+            ++$this->calls;
+            return new $entry(...$params);
+        }
+    };
+    $provider = new AttributePolicyProvider($factory);
+
+    expect(fn () => $provider->provideFor($action))
+        ->toThrow(InvalidArgumentException::class, 'Ambiguous policy declaration')
+        ->and($factory->calls)->toBe(0);
+})->with([
+    AmbiguousPolicyAttributeTarget::class,
+    AmbiguousPolicyAttributeTarget::class . '::direct',
+    AmbiguousPolicyAttributeTarget::class . '::all',
+    AmbiguousPolicyAttributeTarget::class . '::one',
+]);
+
+it('preserves AND semantics when direct policies and references are declared separately', function (): void {
+    $policy = $this->provider->provideFor(AmbiguousPolicyAttributeTarget::class . '::explicit');
+
+    expect($policy?->enforce(new stdClass(), new Context()))->not->toBeTrue();
 });
