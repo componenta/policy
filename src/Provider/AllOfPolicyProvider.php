@@ -23,20 +23,16 @@ use Componenta\Policy\PolicyProviderInterface;
 final class AllOfPolicyProvider implements PolicyProviderInterface
 {
     /** @var PolicyProviderInterface[] */
-    private array $providers;
+    private array $providers = [];
 
     /**
      * @param PolicyProviderInterface[] $providers Checked in order.
      */
     public function __construct(array $providers = [])
     {
-        $snapshot = [];
-
         foreach ($providers as $provider) {
-            $snapshot[] = $provider;
+            $this->add($provider);
         }
-
-        $this->providers = $snapshot;
     }
 
     public function provideFor(string $actionId): ?PolicyInterface
