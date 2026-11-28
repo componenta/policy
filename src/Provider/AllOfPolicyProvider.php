@@ -6,7 +6,7 @@ namespace Componenta\Policy\Provider;
 
 use Componenta\Policy\Policies\AllOf;
 use Componenta\Policy\PolicyInterface;
-use Componenta\Policy\PolicyProviderInterface;
+use Componenta\Policy\Provider\Internal\ProviderChain;
 
 /**
  * Chains providers and combines every matching policy with AND semantics.
@@ -20,21 +20,8 @@ use Componenta\Policy\PolicyProviderInterface;
  * {@see self::add()} / {@see self::prepend()} mutate the chain and are intended
  * for bootstrap wiring only; concurrent access during request handling is not supported.
  */
-final class AllOfPolicyProvider implements PolicyProviderInterface
+final class AllOfPolicyProvider extends ProviderChain
 {
-    /** @var PolicyProviderInterface[] */
-    private array $providers = [];
-
-    /**
-     * @param PolicyProviderInterface[] $providers Checked in order.
-     */
-    public function __construct(array $providers = [])
-    {
-        foreach ($providers as $provider) {
-            $this->add($provider);
-        }
-    }
-
     public function provideFor(string $actionId): ?PolicyInterface
     {
         $policies = [];
@@ -52,15 +39,5 @@ final class AllOfPolicyProvider implements PolicyProviderInterface
             1 => $policies[0],
             default => AllOf::of($policies),
         };
-    }
-
-    public function add(PolicyProviderInterface $provider): void
-    {
-        $this->providers[] = $provider;
-    }
-
-    public function prepend(PolicyProviderInterface $provider): void
-    {
-        array_unshift($this->providers, $provider);
     }
 }

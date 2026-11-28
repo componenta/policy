@@ -165,6 +165,8 @@ Policies that require context validate it explicitly:
 - `AllOfPolicyProvider` — combines policies found in multiple providers with `AllOf`;
 - `OneOfPolicyProvider` — combines policies found in multiple providers with `OneOf`.
 
+Built-in provider chains reject direct and indirect cycles during registration (`add()` / `prepend()`), before the chain is changed. Shared acyclic subchains and repeated registrations remain valid. Custom providers are responsible for avoiding recursive delegation through their own implementation. Configure provider chains during application bootstrap, not during request handling.
+
 The default `PolicyProviderFactory` composes configured policy maps, custom providers, and native attributes in that order. Attribute policies are created on each `provideFor()` call using native attribute construction and the current DI factory. Configured policy factories are also invoked on each resolution. Explicitly registered policy objects retain their application-defined lifetime. Constructor and factory failures propagate on the invocation where they occur. Configuration-aware factories receive `Componenta\Config\ContainerValue`.
 
 Disk policy compilation has been removed. Remove `compiled_policies`, `compiled_policies_file` and `compiled_policies_strict` settings, and remove `componenta/policy-app`. Register this package's ConfigProvider directly. Existing disk artifacts are unused; policy requires no application builder.
