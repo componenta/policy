@@ -47,3 +47,17 @@ For a push whose commit message starts with `Release v`, both verification jobs 
 The callback tests were introduced against the old public API and failed for the missing capability before implementation. They cover direct calls, native attribute construction, private static first-class callables declared through a shared trait used by two classes, repeated evaluations with current inputs, result validation, and exception boundaries. The full existing test suite remains the preservation control. PHPStan runs at the repository's established maximum level.
 
 PHP 8.5 introduced the constant-expression syntax; [PHP 8.5.13](https://www.php.net/ChangeLog-8.php#8.5.13) fixes the required trait callable scope and visibility behavior. Native closure persistence is not part of this feature.
+
+## Performance measurements
+
+Install the development dependencies as described above, then run:
+
+```bash
+composer bench
+# Focus on a single benchmark class:
+php vendor/bin/phpbench run --filter=ContextBench --report=aggregate
+```
+
+The PHPBench suite separates context construction and export, policy evaluation, provider resolution, and end-to-end enforcement. Setup (actors, permissions, configured policies, factories and context fixtures) is outside the timed methods. The oversized shared-array test measures the bounded rejection path; it is not a normal request-size measurement.
+
+Compare the same PHP version, dependency revisions, OPcache settings and machine. Use the aggregate report to inspect time, memory and variation. Do not introduce absolute CI timing thresholds or cache authorization decisions based on benchmark results; preserve behavior using the regression suite before accepting optimizations.

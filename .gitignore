@@ -9,3 +9,5 @@ integration/composer.lock
 /.composer-development.json
 /.composer-development.lock
 /.development-dependencies/
+/phpbench.json
+/.phpbench/

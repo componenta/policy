@@ -13,6 +13,7 @@
     },
     "require-dev": {
         "pestphp/pest": "^4.0",
+        "phpbench/phpbench": "^1.7.1",
         "phpstan/phpstan": "^2.2.14"
     },
     "autoload": {
@@ -46,6 +47,7 @@
     },
     "scripts": {
         "test": "@php vendor/bin/pest",
-        "analyse": "@php vendor/bin/phpstan analyse src tests/StaticAnalysis --level=max"
+        "analyse": "@php vendor/bin/phpstan analyse src tests/StaticAnalysis --level=max",
+        "bench": "@php vendor/bin/phpbench run --report=aggregate"
     }
 }
