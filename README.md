@@ -87,10 +87,10 @@ $enforcer->enforce('posts.update', $user, [
 
 - `check()` returns `true|AccessDenied` for normal authorization outcomes.
 - `can()` returns a boolean for normal outcomes.
-- `enforce()` throws `AccessDeniedException` for a normal denial.
+- `enforce()` throws `AccessDeniedException` for a normal denial. Its details (including actor, context and internal reason) are for trusted application handling, not automatic serialization or disclosure to API clients.
 - policy usage/configuration exceptions are not converted into denials.
 
-Missing policies follow `MissingPolicyBehavior`. The default is `DENY`. A call may override the behavior through `PolicyEnforcer::ATTR_MISSING_POLICY_BEHAVIOR` in context.
+Missing policies follow `MissingPolicyBehavior`. The default is `DENY`. A call may override the behavior through `PolicyEnforcer::ATTR_MISSING_POLICY_BEHAVIOR` in context. Set this override only in trusted application code. Do not forward client-controlled attribute bags or construct actors from unverified request data. Keep `DENY` as the default for protected actions.
 
 ## Built-in policies
 
@@ -161,7 +161,7 @@ Policies that require context validate it explicitly:
 
 - `ArrayPolicyProvider` — action-id map with lazy factories;
 - `AttributePolicyProvider` — policies declared by PHP attributes;
-- `CompositePolicyProvider` — first matching provider wins;
+- `CompositePolicyProvider` — first matching provider wins (later rules are not evaluated);
 - `AllOfPolicyProvider` — combines policies found in multiple providers with `AllOf`;
 - `OneOfPolicyProvider` — combines policies found in multiple providers with `OneOf`.
 
@@ -183,7 +183,9 @@ final class PostController {}
 
 When a policy needs DI services, use `Componenta\Policy\Attribute\Policy` and let `AttributePolicyProvider` create it through `Componenta\DI\FactoryInterface`.
 
-`Componenta\Policy\Attribute\AllOf` and `Componenta\Policy\Attribute\OneOf` compose direct policies and policy references.
+`Componenta\Policy\Attribute\AllOf` and `Componenta\Policy\Attribute\OneOf` compose direct policies and policy references. An empty `AllOf` allows (vacuous truth); an empty `OneOf` denies. Do not use an empty `AllOf` as a placeholder for a rule that should restrict access. Use `Deny` explicitly.
+
+Class-level attributes apply to class action IDs; method-level attributes apply to `Class::method` IDs. Method lookups do not automatically include class-level rules. Integrations requiring both levels must enforce both or explicitly combine the policies. The first-match provider chain can also intentionally replace an attribute policy with a configured policy; use `AllOfPolicyProvider` when all matching providers must constrain the action.
 
 ### Callback policies
 
