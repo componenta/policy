@@ -89,20 +89,15 @@ final class HierarchyPolicy extends AbstractPolicy
     }
 
     /**
-     * @param list<RoleInterface|RoleCollectionInterface> $sources
+     * @param array{roles: list<RoleInterface>, collections: list<RoleCollectionInterface>} $sources
      * @return list<RoleInterface>
      */
     private static function normalizeRoles(array $sources): array
     {
-        $result = [];
+        $result = $sources['roles'];
 
-        foreach ($sources as $source) {
-            if ($source instanceof RoleInterface) {
-                $result[] = $source;
-                continue;
-            }
-
-            foreach ($source as $role) {
+        foreach ($sources['collections'] as $collection) {
+            foreach ($collection as $role) {
                 $result[] = CollectionElement::role($role);
             }
         }

@@ -12,19 +12,36 @@ use Componenta\Policy\Actor\RoleInterface;
 /** @internal Resolves the role sources shared by the built-in role policies. */
 final class RoleSources
 {
-    /** @return non-empty-list<RoleInterface|RoleCollectionInterface>|null */
+    /** @return array{roles: list<RoleInterface>, collections: list<RoleCollectionInterface>}|null */
     public static function extract(mixed $subject): ?array
     {
-        if ($subject instanceof RoleInterface || $subject instanceof RoleCollectionInterface) {
-            return [$subject];
+        $roles = [];
+        $collections = [];
+
+        if ($subject instanceof RoleInterface) {
+            $roles[] = $subject;
         }
 
         if ($subject instanceof RoleAwareInterface) {
-            return $subject instanceof RoleCollectionAwareInterface
-                ? [$subject->role, $subject->roles]
-                : [$subject->role];
+            $role = $subject->role;
+            if ($role !== $subject) {
+                $roles[] = $role;
+            }
         }
 
-        return $subject instanceof RoleCollectionAwareInterface ? [$subject->roles] : null;
+        if ($subject instanceof RoleCollectionInterface) {
+            $collections[] = $subject;
+        }
+
+        if ($subject instanceof RoleCollectionAwareInterface) {
+            $collection = $subject->roles;
+            if ($collection !== $subject) {
+                $collections[] = $collection;
+            }
+        }
+
+        return $roles === [] && $collections === []
+            ? null
+            : ['roles' => $roles, 'collections' => $collections];
     }
 }

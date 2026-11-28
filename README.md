@@ -108,7 +108,7 @@ Missing policies follow `MissingPolicyBehavior`. The default is `DENY`. A call m
 
 For `PermissionPolicy`, `RolePolicy`, `OwnerPolicy`, and `HierarchyPolicy`, `Guest` is a valid subject that receives a normal denial. These policies still fail fast for unsupported non-guest actor objects. Context invariants are also fail-fast: for example, `OwnerPolicy` still requires a valid `resource` even when the actor is `Guest`.
 
-`RolePolicy` and `HierarchyPolicy` accept `RoleInterface` and `RoleCollectionInterface` directly in addition to role-aware actor capabilities. When an actor exposes both role capabilities, both policies consider the single role and the role collection. An empty role collection is a valid role source and produces a normal denial when a role is required; it is not an invalid actor.
+`RolePolicy` and `HierarchyPolicy` accept `RoleInterface` and `RoleCollectionInterface` directly in addition to role-aware actor capabilities. When an actor exposes both role capabilities, both policies consider the single role and the role collection. An empty role collection is a valid role source and produces a normal denial when a role is required; it is not an invalid actor. If a subject also directly implements a role or role collection contract, those direct sources participate as well. Self-exposed sources are not counted twice.
 
 ### Permission example
 

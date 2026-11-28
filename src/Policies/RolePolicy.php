@@ -71,35 +71,35 @@ final class RolePolicy extends AbstractPolicy
             );
         }
 
-        foreach ($sources as $source) {
-            if ($source instanceof RoleCollectionInterface) {
-                foreach ($this->roles as $allowedRole) {
-                    if ($source->contains($allowedRole)) {
-                        return true;
-                    }
-                }
-            } elseif (in_array($source->name, $this->roles, true)) {
+        foreach ($sources['roles'] as $role) {
+            if (in_array($role->name, $this->roles, true)) {
                 return true;
             }
         }
 
-        $first = $sources[0];
-        if (count($sources) === 1 && !$first instanceof RoleCollectionInterface) {
+        foreach ($sources['collections'] as $collection) {
+            foreach ($this->roles as $allowedRole) {
+                if ($collection->contains($allowedRole)) {
+                    return true;
+                }
+            }
+        }
+
+        if (count($sources['roles']) === 1 && $sources['collections'] === []) {
             return $this->deny(sprintf(
                 'Actor role "%s" is not in allowed roles: %s',
-                $first->name,
+                $sources['roles'][0]->name,
                 implode(', ', $this->roles),
             ));
         }
 
         $names = [];
-        foreach ($sources as $source) {
-            if ($source instanceof RoleCollectionInterface) {
-                foreach ($source as $role) {
-                    $names[] = CollectionElement::role($role)->name;
-                }
-            } else {
-                $names[] = $source->name;
+        foreach ($sources['roles'] as $role) {
+            $names[] = $role->name;
+        }
+        foreach ($sources['collections'] as $collection) {
+            foreach ($collection as $role) {
+                $names[] = CollectionElement::role($role)->name;
             }
         }
 
