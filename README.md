@@ -171,7 +171,7 @@ The default `PolicyProviderFactory` composes configured policy maps, custom prov
 
 Disk policy compilation has been removed. Remove `compiled_policies`, `compiled_policies_file` and `compiled_policies_strict` settings, and remove `componenta/policy-app`. Register this package's ConfigProvider directly. Existing disk artifacts are unused; policy requires no application builder.
 
-Configured provider class names and policy-map shapes are validated before use. Lazy configured policy factories must resolve to `PolicyInterface`.
+Configured provider class names and policy-map shapes are validated before use. The `policy` section and its `policies` and `providers` entries must be arrays when present. The `missing_policy_behavior` entry must be a `MissingPolicyBehavior` enum value. Defaults apply only to absent keys; explicit `null` and scalar values are configuration errors. Lazy configured policy factories must resolve to `PolicyInterface`.
 
 ## Attributes
 

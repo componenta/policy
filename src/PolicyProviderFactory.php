@@ -9,6 +9,7 @@ use Componenta\DI\FactoryInterface;
 use Componenta\Policy\Provider\ArrayPolicyProvider;
 use Componenta\Policy\Provider\AttributePolicyProvider;
 use Componenta\Policy\Provider\CompositePolicyProvider;
+use Componenta\Policy\Internal\PolicyConfiguration;
 use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
 
@@ -17,17 +18,17 @@ final class PolicyProviderFactory
 {
     public function __invoke(ContainerValue $container): PolicyProviderInterface
     {
-        $config = $container->config->array(ConfigKey::POLICY, []);
+        $config = PolicyConfiguration::read($container->config);
 
         /** @var list<PolicyProviderInterface> $providers */
         $providers = [];
 
-        $policies = $this->configuredPolicies($config[ConfigKey::POLICIES] ?? []);
+        $policies = $this->configuredPolicies(PolicyConfiguration::value($config, ConfigKey::POLICIES, []));
         if ($policies !== []) {
             $providers[] = new ArrayPolicyProvider($container, $policies);
         }
 
-        foreach ($this->providerClasses($config[ConfigKey::PROVIDERS] ?? []) as $providerClass) {
+        foreach ($this->providerClasses(PolicyConfiguration::value($config, ConfigKey::PROVIDERS, [])) as $providerClass) {
             $providers[] = $container->get($providerClass, PolicyProviderInterface::class);
         }
 

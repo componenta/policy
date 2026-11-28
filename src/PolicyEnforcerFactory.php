@@ -6,6 +6,7 @@ namespace Componenta\Policy;
 
 use Componenta\Config\ContainerValue;
 use Componenta\Policy\Context\ContextFactoryInterface;
+use Componenta\Policy\Internal\PolicyConfiguration;
 use InvalidArgumentException;
 
 /** DI factory for {@see PolicyEnforcer}. */
@@ -13,8 +14,8 @@ final class PolicyEnforcerFactory
 {
     public function __invoke(ContainerValue $container): PolicyEnforcer
     {
-        $config = $container->config->array(ConfigKey::POLICY, []);
-        $behavior = $config[ConfigKey::MISSING_POLICY_BEHAVIOR] ?? MissingPolicyBehavior::DENY;
+        $config = PolicyConfiguration::read($container->config);
+        $behavior = PolicyConfiguration::value($config, ConfigKey::MISSING_POLICY_BEHAVIOR, MissingPolicyBehavior::DENY);
 
         if (!$behavior instanceof MissingPolicyBehavior) {
             throw new InvalidArgumentException(sprintf(
