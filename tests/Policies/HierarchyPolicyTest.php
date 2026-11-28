@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 use Componenta\Policy\Actor\Guest;
 use Componenta\Policy\Actor\RoleCollection;
+use Componenta\Policy\Actor\RoleCollectionInterface;
+use Componenta\Policy\Actor\RoleInterface;
+use Componenta\Policy\ContainsMode;
 use Componenta\Policy\Context\Context;
 use Componenta\Policy\Exception\DenyReason;
 use Componenta\Policy\Exception\InvalidPolicyActorException;
 use Componenta\Policy\Exception\InvalidPolicyContextAttributeException;
+use Componenta\Policy\Exception\InvalidRoleCollectionException;
 use Componenta\Policy\Exception\MissingPolicyContextAttributeException;
 use Componenta\Policy\Policies\HierarchyPolicy;
 use Componenta\Policy\Tests\Fixture\FakeActor;
@@ -203,4 +207,60 @@ it('does not enumerate target roles after recognizing a guest actor', function (
     expect((new HierarchyPolicy())->enforce(new Guest(), new Context([
         HierarchyPolicy::ATTR_TARGET => $target,
     ])))->toBeInstanceOf(DenyReason::class);
+});
+
+/** Deliberately violates the element type of a third-party role collection. */
+function malformedHierarchyRoleCollection(array $items): RoleCollectionInterface
+{
+    return new class($items) implements RoleCollectionInterface {
+        public function __construct(private array $items) {}
+
+        public function getIterator(): Traversable
+        {
+            yield from $this->items;
+        }
+
+        public function count(): int { return count($this->items); }
+        public function toArray(): array { return $this->items; }
+
+        public function contains(
+            RoleInterface|RoleCollectionInterface|string $role,
+            ContainsMode $mode = ContainsMode::ANY,
+        ): bool {
+            return false;
+        }
+    };
+}
+
+it('rejects a non-role object even if it claims to outrank every target', function (): void {
+    $invalid = new class {
+        public string $name = 'invalid';
+
+        public function outranks(object $other): bool { return true; }
+    };
+
+    $policy = new HierarchyPolicy();
+    $context = new Context([HierarchyPolicy::ATTR_TARGET => new FakeRole('user', rank: 1)]);
+
+    expect(fn () => $policy->enforce(malformedHierarchyRoleCollection([$invalid]), $context))
+        ->toThrow(InvalidRoleCollectionException::class)
+        ->and(fn () => $policy->enforce(
+            malformedHierarchyRoleCollection([new FakeRole('admin', rank: 10), $invalid]),
+            $context,
+        ))->toThrow(InvalidRoleCollectionException::class);
+});
+
+it('rejects invalid actor and target role collection elements as policy errors', function (): void {
+    $policy = new HierarchyPolicy();
+    $admin = new FakeRole('admin', rank: 10);
+    $user = new FakeRole('user', rank: 1);
+
+    expect(fn () => $policy->enforce(
+        malformedHierarchyRoleCollection([null]),
+        new Context([HierarchyPolicy::ATTR_TARGET => $user]),
+    ))->toThrow(InvalidRoleCollectionException::class)
+        ->and(fn () => $policy->enforce(
+            $admin,
+            new Context([HierarchyPolicy::ATTR_TARGET => malformedHierarchyRoleCollection([$user, new stdClass()])]),
+        ))->toThrow(InvalidRoleCollectionException::class);
 });
